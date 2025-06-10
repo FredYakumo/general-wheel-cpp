@@ -53,17 +53,11 @@ include(CMakePackageConfigHelpers)
 set(INCLUDE_INSTALL_DIR include
     CACHE PATH "Installation directory for header files")
 
-configure_package_config_file(cmake/general-wheel-cppConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/general-wheel-cppConfig.cmake
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/general-wheel-cpp
-    PATH_VARS INCLUDE_INSTALL_DIR)
-
 configure_package_config_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
     INSTALL_DESTINATION lib/cmake/${PROJECT_NAME}
-    NO_SET_AND_CHECK_MACRO
-    NO_CHECK_REQUIRED_COMPONENTS_MACRO
+    PATH_VARS INCLUDE_INSTALL_DIR
 )
 
 # Generate the version file
