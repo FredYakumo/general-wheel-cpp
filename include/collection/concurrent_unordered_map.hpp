@@ -5,17 +5,15 @@
 
 #pragma once
 
+#include "locked_ref.hpp"
 #include <functional>
 #include <mutex>
 #include <optional>
 #include <shared_mutex>
 #include <unordered_map>
 #include <utility>
-#include "locked_ref.hpp"
 
 namespace wheel {
-
-
 
     /**
      * @brief Thread-safe unordered map container with concurrent access support
@@ -62,9 +60,11 @@ namespace wheel {
          * @return A locked reference to the inserted or updated value
          */
         locked_reference<Value, std::shared_mutex> insert_or_assign(const Key &key, const Value &value) {
-            std::unique_lock lock(m_mutex);
+            std::unique_lock unique_lock(m_mutex);
             auto [it, _] = m_map.insert_or_assign(key, value);
-            return locked_reference<Value, std::shared_mutex>(it->second, std::move(lock));
+            std::shared_lock shared_lock(m_mutex, std::adopt_lock);
+            unique_lock.release();
+            return locked_reference<Value, std::shared_mutex>(it->second, std::move(shared_lock));
         }
 
         /**
@@ -78,16 +78,13 @@ namespace wheel {
 
         /**
          * @brief Finds an element with given key
-         * @return std::optional containing a reference to the value if found, empty
-         * otherwise
-         * @warning The returned reference is only valid while the caller maintains
-         * appropriate synchronization
+         * @return A locked reference to the value if found, empty otherwise
          */
-        std::optional<std::reference_wrapper<Value>> find(const Key &key) const {
+        std::optional<locked_reference<Value, std::shared_mutex>> find(const Key &key) const {
             std::shared_lock lock(m_mutex);
             auto it = m_map.find(key);
-            if (it != m_map.end()) {
-                return std::ref(it->second);
+            if (it != std::cend(m_map)) {
+            return locked_reference<Value, std::shared_mutex>(it->second, std::move(lock));
             }
             return std::nullopt;
         }
@@ -193,10 +190,28 @@ namespace wheel {
          * @param default_value The value to insert if key doesn't exist
          * @return A locked reference to the value (existing or newly created)
          */
-        template <typename V> locked_reference<Value, std::shared_mutex> get_or_create_value(const Key &key, V &&default_value) {
-            std::unique_lock lock(m_mutex);
-            auto [it, inserted] = m_map.try_emplace(key, std::forward<V>(default_value));
-            return locked_reference<Value, std::shared_mutex>(it->second, std::move(lock));
+        template <typename V>
+        locked_reference<Value, std::shared_mutex> get_or_create_value(const Key &key, V &&default_value) {
+            // Try with shared lock
+            std::shared_lock shared_lock(m_mutex);
+            auto it = m_map.find(key);
+            if (it != std::cend(m_map)) {
+                return locked_reference<Value, std::shared_mutex>(it->second, std::move(shared_lock));
+            }
+
+            // Key not found, upgrade to unique lock
+            shared_lock.unlock();
+            std::unique_lock unique_lock(m_mutex);
+
+            // Double-check pattern in case another thread inserted while upgrading
+            it = m_map.find(key);
+            if (it != std::cend(m_map)) {
+                return locked_reference<Value, std::shared_mutex>(it->second, std::move(unique_lock));
+            }
+
+            // insert new value
+            auto [new_it, inserted] = m_map.try_emplace(key, std::forward<V>(default_value));
+            return locked_reference<Value, std::shared_mutex>(new_it->second, std::move(unique_lock));
         }
 
       private:
