@@ -23,6 +23,12 @@ namespace wheel {
         // Add implicit conversion to T
         operator T() const { return m_ref; }
 
+        T& operator*() noexcept { return m_ref; }
+        const T& operator*() const noexcept { return m_ref; }
+
+        T* operator->() noexcept { return &m_ref; }
+        const T* operator->() const noexcept { return &m_ref; }
+
         // Prevent copying
         shared_guarded_ref(const shared_guarded_ref &) = delete;
         shared_guarded_ref &operator=(const shared_guarded_ref &) = delete;
