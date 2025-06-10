@@ -184,6 +184,20 @@ namespace wheel {
          */
         allocator_type get_allocator() const noexcept { return m_map.get_allocator(); }
 
+        /**
+         * @brief
+         *
+         *
+         * @param key The key to look up
+         * @param default_value The value to insert if key doesn't exist
+         * @return Reference wrapper to the value (existing or newly created)
+         */
+        template <typename V> std::reference_wrapper<Value> get_or_create_value(const Key &key, V &&default_value) {
+            std::unique_lock lock(m_mutex);
+            auto [it, inserted] = m_map.try_emplace(key, std::forward<V>(default_value));
+            return std::ref(it->second);
+        }
+
       private:
         std::unordered_map<Key, Value, Hash, KeyEqual, Allocator> m_map;
         mutable std::shared_mutex m_mutex;
