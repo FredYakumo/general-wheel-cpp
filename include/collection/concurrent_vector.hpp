@@ -12,6 +12,7 @@
 #include <shared_mutex>
 #include <utility>
 #include <vector>
+#include "shared_guarded_ref.hpp"
 
 namespace wheel {
     /**
@@ -65,27 +66,53 @@ namespace wheel {
         /**
          * @brief Accesses specified element with bounds checking
          * @param pos Position of the element to return
-         * @return std::optional containing the element if pos is valid
+         * @return std::optional containing the guarded element if pos is valid
          */
-        std::optional<std::reference_wrapper<const T>> at(size_type pos) const {
+        std::optional<shared_guarded_ref<const T, std::shared_mutex>> at(size_type pos) const {
             std::shared_lock lock(m_mutex);
             if (pos >= m_vec.size()) {
                 return std::nullopt;
             }
-            return std::cref(m_vec[pos]);
+            return shared_guarded_ref<const T, std::shared_mutex>(m_vec[pos], std::move(lock));
+        }
+
+        /**
+         * @brief Accesses specified element with bounds checking
+         * @param pos Position of the element to return
+         * @return std::optional containing the guarded element if pos is valid
+         */
+        std::optional<shared_guarded_ref<T, std::shared_mutex>> at(size_type pos) {
+            std::shared_lock lock(m_mutex);
+            if (pos >= m_vec.size()) {
+                return std::nullopt;
+            }
+            return shared_guarded_ref<T, std::shared_mutex>(m_vec[pos], std::move(lock));
         }
 
         /**
          * @brief Accesses specified element without bounds checking
          * @param pos Position of the element to return
-         * @return std::optional containing the element if pos is valid
+         * @return std::optional containing the guarded element if pos is valid
          */
-        std::optional<std::reference_wrapper<const T>> operator[](size_type pos) const {
+        std::optional<shared_guarded_ref<const T, std::shared_mutex>> operator[](size_type pos) const {
             std::shared_lock lock(m_mutex);
             if (pos >= m_vec.size()) {
                 return std::nullopt;
             }
-            return std::cref(m_vec[pos]);
+            return shared_guarded_ref<const T, std::shared_mutex>(m_vec[pos], std::move(lock));
+        }
+
+        /**
+         * @brief Accesses specified element without bounds checking
+         * @param pos Position of the element to return
+         * @return std::optional containing the guarded element if pos is valid
+         */
+        std::optional<shared_guarded_ref<T, std::shared_mutex>> operator[](size_type pos) {
+            std::shared_lock lock(m_mutex);
+            if (pos >= m_vec.size()) {
+                return std::nullopt;
+            }
+            return shared_guarded_ref<T, std::shared_mutex>(m_vec[pos], std::move(lock));
         }
 
         /**
@@ -190,15 +217,177 @@ namespace wheel {
          * @brief Finds the first element satisfying specific criteria
          * @tparam Predicate Type of the predicate function
          * @param pred Predicate function which returns true for the required element
-         * @return std::optional containing the first matching element if found
+         * @return std::optional containing the const guarded reference to the first matching element if found
          */
-        template <typename Predicate> std::optional<T> find_if(Predicate pred) const {
+        template <typename Predicate>
+        std::optional<shared_guarded_ref<const T, std::shared_mutex>> find_if(Predicate pred) const {
             std::shared_lock lock(m_mutex);
-            auto it = std::find_if(m_vec.begin(), m_vec.end(), pred);
-            if (it != m_vec.end()) {
-                return *it;
+            auto it = std::find_if(std::cbegin(m_vec), std::cend(m_vec), pred);
+            if (it != std::cend(m_vec)) {
+                return shared_guarded_ref<const T, std::shared_mutex>(*it, std::move(lock));
             }
             return std::nullopt;
+        }
+
+        /**
+         * @brief Finds the first element satisfying specific criteria
+         * @tparam Predicate Type of the predicate function
+         * @param pred Predicate function which returns true for the required element
+         * @return std::optional containing the guarded reference to the first matching element if found
+         */
+        template <typename Predicate>
+        std::optional<shared_guarded_ref<T, std::shared_mutex>> find_if(Predicate pred) {
+            std::shared_lock lock(m_mutex);
+            auto it = std::find_if(std::cbegin(m_vec), std::cend(m_vec), pred);
+            if (it != std::cend(m_vec)) {
+                return shared_guarded_ref<T, std::shared_mutex>(*it, std::move(lock));
+            }
+            return std::nullopt;
+        }
+
+        /**
+         * @brief Thread-safe iterator wrapper for concurrent_vector
+         */
+        class const_iterator {
+        public:
+            using iterator_category = std::forward_iterator_tag;
+            using value_type = T;
+            using difference_type = std::ptrdiff_t;
+            using pointer = const T*;
+            using reference = const T&;
+
+            const_iterator(const const_iterator&) = delete;
+            const_iterator& operator=(const const_iterator&) = delete;
+
+            const_iterator(const_iterator&& other) noexcept
+                : m_vec(other.m_vec)
+                , m_lock(std::move(other.m_lock))
+                , m_it(other.m_it) {}
+
+            reference operator*() const { return *m_it; }
+            pointer operator->() const { return &(*m_it); }
+
+            const_iterator& operator++() {
+                ++m_it;
+                return *this;
+            }
+
+            const_iterator operator++(int) {
+                const_iterator tmp = std::move(*this);
+                ++m_it;
+                return tmp;
+            }
+
+            bool operator==(const const_iterator& other) const {
+                return m_it == other.m_it;
+            }
+
+            bool operator!=(const const_iterator& other) const {
+                return !(*this == other);
+            }
+
+        private:
+            friend class concurrent_vector;
+            const concurrent_vector* m_vec;
+            std::shared_lock<std::shared_mutex> m_lock;
+            typename std::vector<T, Allocator>::const_iterator m_it;
+
+            const_iterator(const concurrent_vector* vec, std::shared_lock<std::shared_mutex> lock,
+                          typename std::vector<T, Allocator>::const_iterator it)
+                : m_vec(vec)
+                , m_lock(std::move(lock))
+                , m_it(it) {}
+        };
+
+        /**
+         * @brief Thread-safe iterator wrapper for concurrent_vector that allows modification
+         */
+        class iterator {
+        public:
+            using iterator_category = std::forward_iterator_tag;
+            using value_type = T;
+            using difference_type = std::ptrdiff_t;
+            using pointer = T*;
+            using reference = T&;
+
+            iterator(const iterator&) = delete;
+            iterator& operator=(const iterator&) = delete;
+
+            iterator(iterator&& other) noexcept
+                : m_vec(other.m_vec)
+                , m_lock(std::move(other.m_lock))
+                , m_it(other.m_it) {}
+
+            reference operator*() { return *m_it; }
+            pointer operator->() { return &(*m_it); }
+
+            iterator& operator++() {
+                ++m_it;
+                return *this;
+            }
+
+            iterator operator++(int) {
+                iterator tmp = std::move(*this);
+                ++m_it;
+                return tmp;
+            }
+
+            bool operator==(const iterator& other) const {
+                return m_it == other.m_it;
+            }
+
+            bool operator!=(const iterator& other) const {
+                return !(*this == other);
+            }
+
+            // Allow conversion to const_iterator
+            operator const_iterator() const {
+                return const_iterator(m_vec, std::shared_lock<std::shared_mutex>(m_vec->m_mutex), m_it);
+            }
+
+        private:
+            friend class concurrent_vector;
+            concurrent_vector* m_vec;
+            std::shared_lock<std::shared_mutex> m_lock;
+            typename std::vector<T, Allocator>::iterator m_it;
+
+            iterator(concurrent_vector* vec, std::shared_lock<std::shared_mutex> lock,
+                    typename std::vector<T, Allocator>::iterator it)
+                : m_vec(vec)
+                , m_lock(std::move(lock))
+                , m_it(it) {}
+        };
+
+        /**
+         * @brief Returns a thread-safe iterator to the beginning
+         */
+        const_iterator cbegin() const {
+            std::shared_lock lock(m_mutex);
+            return const_iterator(this, std::move(lock), m_vec.begin());
+        }
+
+        /**
+         * @brief Returns a thread-safe iterator to the end
+         */
+        const_iterator cend() const {
+            std::shared_lock lock(m_mutex);
+            return const_iterator(this, std::move(lock), m_vec.end());
+        }
+
+        /**
+         * @brief Returns a thread-safe iterator to the beginning that allows modification
+         */
+        iterator begin() {
+            std::shared_lock lock(m_mutex);
+            return iterator(this, std::move(lock), m_vec.begin());
+        }
+
+        /**
+         * @brief Returns a thread-safe iterator to the end that allows modification
+         */
+        iterator end() {
+            std::shared_lock lock(m_mutex);
+            return iterator(this, std::move(lock), m_vec.end());
         }
 
       private:
