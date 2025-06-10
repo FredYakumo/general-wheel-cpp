@@ -59,20 +59,21 @@ target_link_libraries(your_target general-wheel-cpp::general-wheel-cpp)
 Example usage:
 
 ```cpp
+using namespace wheel;
+
 #include <collection/concurrent_unordered_map.hpp>
 #include <collection/concurrent_vector.hpp>
 #include <string_utils.hpp>
 #include <mutex_data.hpp>
 
 // Thread-safe collections
-general_wheel::concurrent_unordered_map<int, std::string> map;
+concurrent_unordered_map<int, std::string> map;
 map.insert({1, "one"});
 
-general_wheel::concurrent_vector<int> vec;
+concurrent_vector<int> vec;
 vec.push_back(42);
 
 // String utilities
-using namespace wheel;
 
 // UTF-8 string manipulation
 std::string_view text = "  Hello World  ";
@@ -100,7 +101,7 @@ struct UserData {
     int age;
 };
 
-wheel::MutexData<UserData> protected_data;
+MutexData<UserData> protected_data;
 
 // Thread-safe data access
 protected_data.modify([](UserData& data) {
