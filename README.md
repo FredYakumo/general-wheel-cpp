@@ -100,7 +100,7 @@ struct UserData {
     int age;
 };
 
-wheel::mutex_data<UserData> protected_data;
+wheel::MutexData<UserData> protected_data;
 
 // Thread-safe data access
 protected_data.modify([](UserData& data) {
