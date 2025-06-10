@@ -6,7 +6,7 @@ A modern C++ utility library providing thread-safe collections and other general
 
 - Thread-safe collections:
   - Concurrent unordered map
-  - Concurrent vector 
+  - Concurrent vector
 
 - String utilities:
   - UTF-8 string manipulation
@@ -27,11 +27,13 @@ A modern C++ utility library providing thread-safe collections and other general
 - C++17 or later
 - CMake 3.14 or later
 
+# How to use
 ## Building
 
 ```bash
-mkdir build
-cd build
+git clone https://github.com/FredYakumo/general-wheel-cpp.git
+cd general-wheel-cpp
+mkdir build && cd build
 cmake -G "Ninja" ..
 cmake --build . --parallel
 ```
@@ -43,8 +45,8 @@ sudo cmake --install .
 ```
 
 This will install:
-- Library files to `lib/`
-- Header files to `include/`
+- Library files to `lib/general-wheel-cpp/`
+- Header files to `include/general-wheel-cpp/`
 - CMake configuration to `lib/cmake/general-wheel-cpp/`
 
 ## Usage
@@ -76,8 +78,8 @@ vec.push_back(42);
 // String utilities
 
 // UTF-8 string manipulation
-std::string_view text = "  Hello World  ";
-auto trimmed = ltrim(rtrim(text));  // "Hello World"
+std::string_view text = "  1145141919  ";
+auto trimmed = ltrim(rtrim(text));  // "1145141919"
 
 // String replacement with UTF-8 support
 std::string str = "你要玩原神还是玩c加加";
@@ -106,7 +108,7 @@ MutexData<UserData> protected_data;
 // Thread-safe data access
 protected_data.modify([](UserData& data) {
     data.name = "丁真";
-    data.age = 30;
+    data.age = 233;
 });
 
 // Read data safely
