@@ -11,8 +11,11 @@
 #include <shared_mutex>
 #include <unordered_map>
 #include <utility>
+#include "locked_ref.hpp"
 
 namespace wheel {
+
+
 
     /**
      * @brief Thread-safe unordered map container with concurrent access support
@@ -56,12 +59,12 @@ namespace wheel {
          * @brief Inserts or updates an element in the container
          * @param key The key of the element to insert/update
          * @param value The value to associate with the key
-         * @return A reference wrapper to the inserted or updated value
+         * @return A locked reference to the inserted or updated value
          */
-        std::reference_wrapper<Value> insert_or_assign(const Key &key, const Value &value) {
+        locked_reference<Value, std::shared_mutex> insert_or_assign(const Key &key, const Value &value) {
             std::unique_lock lock(m_mutex);
             auto [it, _] = m_map.insert_or_assign(key, value);
-            return std::ref(it->second);
+            return locked_reference<Value, std::shared_mutex>(it->second, std::move(lock));
         }
 
         /**
@@ -185,17 +188,15 @@ namespace wheel {
         allocator_type get_allocator() const noexcept { return m_map.get_allocator(); }
 
         /**
-         * @brief
-         *
-         *
+         * @brief Gets or creates a value for the given key
          * @param key The key to look up
          * @param default_value The value to insert if key doesn't exist
-         * @return Reference wrapper to the value (existing or newly created)
+         * @return A locked reference to the value (existing or newly created)
          */
-        template <typename V> std::reference_wrapper<Value> get_or_create_value(const Key &key, V &&default_value) {
+        template <typename V> locked_reference<Value, std::shared_mutex> get_or_create_value(const Key &key, V &&default_value) {
             std::unique_lock lock(m_mutex);
             auto [it, inserted] = m_map.try_emplace(key, std::forward<V>(default_value));
-            return std::ref(it->second);
+            return locked_reference<Value, std::shared_mutex>(it->second, std::move(lock));
         }
 
       private:
