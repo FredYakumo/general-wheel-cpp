@@ -18,14 +18,14 @@ A modern C++ utility library providing thread-safe collections and other general
 ```bash
 mkdir build
 cd build
-cmake ..
-make
+cmake -G "Ninja" ..
+cmake --build . --parallel
 ```
 
 ## Installation
 
 ```bash
-make install
+sudo cmake --install .
 ```
 
 This will install:
