@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "../shared_guarded_ref.hpp"
 #include <algorithm>
 #include <functional>
 #include <mutex>
@@ -12,7 +13,6 @@
 #include <shared_mutex>
 #include <utility>
 #include <vector>
-#include "../shared_guarded_ref.hpp"
 
 namespace wheel {
     /**
@@ -44,6 +44,46 @@ namespace wheel {
          * @param alloc The allocator to use for all memory allocations
          */
         explicit concurrent_vector(const Allocator &alloc) : m_vec(alloc) {}
+
+        /**
+         * @brief Constructs a container by taking ownership of the elements from the given vector
+         * @param other The vector whose elements will be moved into this container
+         */
+        explicit concurrent_vector(std::vector<T, Allocator> &&other) : m_vec(std::move(other)) {}
+
+        concurrent_vector &operator=(const concurrent_vector &other) {
+            if (this != &other) {
+                // Lock both vectors to prevent data races
+                std::unique_lock lock1(m_mutex, std::defer_lock);
+                std::shared_lock lock2(other.m_mutex, std::defer_lock);
+
+                // Lock both mutexes without deadlock
+                std::lock(lock1, lock2);
+
+                m_vec = other.m_vec;
+            }
+            return *this;
+        }
+
+        concurrent_vector &operator=(concurrent_vector &&other) noexcept {
+            if (this != &other) {
+                // Lock both vectors to prevent data races
+                std::unique_lock lock1(m_mutex, std::defer_lock);
+                std::shared_lock lock2(other.m_mutex, std::defer_lock);
+
+                // Lock both mutexes without deadlock
+                std::lock(lock1, lock2);
+
+                m_vec = std::move(other.m_vec);
+            }
+            return *this;
+        }
+
+        concurrent_vector &operator=(std::vector<T, Allocator> &&other) {
+            std::unique_lock lock(m_mutex);
+            m_vec = std::move(other);
+            return *this;
+        }
 
         /**
          * @brief Appends the given element to the end of the container
@@ -235,8 +275,7 @@ namespace wheel {
          * @param pred Predicate function which returns true for the required element
          * @return std::optional containing the guarded reference to the first matching element if found
          */
-        template <typename Predicate>
-        std::optional<shared_guarded_ref<T, std::shared_mutex>> find_if(Predicate pred) {
+        template <typename Predicate> std::optional<shared_guarded_ref<T, std::shared_mutex>> find_if(Predicate pred) {
             std::shared_lock lock(m_mutex);
             auto it = std::find_if(std::cbegin(m_vec), std::cend(m_vec), pred);
             if (it != std::cend(m_vec)) {
@@ -249,25 +288,23 @@ namespace wheel {
          * @brief Thread-safe iterator wrapper for concurrent_vector
          */
         class const_iterator {
-        public:
+          public:
             using iterator_category = std::forward_iterator_tag;
             using value_type = T;
             using difference_type = std::ptrdiff_t;
-            using pointer = const T*;
-            using reference = const T&;
+            using pointer = const T *;
+            using reference = const T &;
 
-            const_iterator(const const_iterator&) = delete;
-            const_iterator& operator=(const const_iterator&) = delete;
+            const_iterator(const const_iterator &) = delete;
+            const_iterator &operator=(const const_iterator &) = delete;
 
-            const_iterator(const_iterator&& other) noexcept
-                : m_vec(other.m_vec)
-                , m_lock(std::move(other.m_lock))
-                , m_it(other.m_it) {}
+            const_iterator(const_iterator &&other) noexcept
+                : m_vec(other.m_vec), m_lock(std::move(other.m_lock)), m_it(other.m_it) {}
 
             reference operator*() const { return *m_it; }
             pointer operator->() const { return &(*m_it); }
 
-            const_iterator& operator++() {
+            const_iterator &operator++() {
                 ++m_it;
                 return *this;
             }
@@ -278,50 +315,42 @@ namespace wheel {
                 return tmp;
             }
 
-            bool operator==(const const_iterator& other) const {
-                return m_it == other.m_it;
-            }
+            bool operator==(const const_iterator &other) const { return m_it == other.m_it; }
 
-            bool operator!=(const const_iterator& other) const {
-                return !(*this == other);
-            }
+            bool operator!=(const const_iterator &other) const { return !(*this == other); }
 
-        private:
+          private:
             friend class concurrent_vector;
-            const concurrent_vector* m_vec;
+            const concurrent_vector *m_vec;
             std::shared_lock<std::shared_mutex> m_lock;
             typename std::vector<T, Allocator>::const_iterator m_it;
 
-            const_iterator(const concurrent_vector* vec, std::shared_lock<std::shared_mutex> lock,
-                          typename std::vector<T, Allocator>::const_iterator it)
-                : m_vec(vec)
-                , m_lock(std::move(lock))
-                , m_it(it) {}
+            const_iterator(const concurrent_vector *vec, std::shared_lock<std::shared_mutex> lock,
+                           typename std::vector<T, Allocator>::const_iterator it)
+                : m_vec(vec), m_lock(std::move(lock)), m_it(it) {}
         };
 
         /**
          * @brief Thread-safe iterator wrapper for concurrent_vector that allows modification
          */
         class iterator {
-        public:
+          public:
             using iterator_category = std::forward_iterator_tag;
             using value_type = T;
             using difference_type = std::ptrdiff_t;
-            using pointer = T*;
-            using reference = T&;
+            using pointer = T *;
+            using reference = T &;
 
-            iterator(const iterator&) = delete;
-            iterator& operator=(const iterator&) = delete;
+            iterator(const iterator &) = delete;
+            iterator &operator=(const iterator &) = delete;
 
-            iterator(iterator&& other) noexcept
-                : m_vec(other.m_vec)
-                , m_lock(std::move(other.m_lock))
-                , m_it(other.m_it) {}
+            iterator(iterator &&other) noexcept
+                : m_vec(other.m_vec), m_lock(std::move(other.m_lock)), m_it(other.m_it) {}
 
             reference operator*() { return *m_it; }
             pointer operator->() { return &(*m_it); }
 
-            iterator& operator++() {
+            iterator &operator++() {
                 ++m_it;
                 return *this;
             }
@@ -332,30 +361,24 @@ namespace wheel {
                 return tmp;
             }
 
-            bool operator==(const iterator& other) const {
-                return m_it == other.m_it;
-            }
+            bool operator==(const iterator &other) const { return m_it == other.m_it; }
 
-            bool operator!=(const iterator& other) const {
-                return !(*this == other);
-            }
+            bool operator!=(const iterator &other) const { return !(*this == other); }
 
             // Allow conversion to const_iterator
             operator const_iterator() const {
                 return const_iterator(m_vec, std::shared_lock<std::shared_mutex>(m_vec->m_mutex), m_it);
             }
 
-        private:
+          private:
             friend class concurrent_vector;
-            concurrent_vector* m_vec;
+            concurrent_vector *m_vec;
             std::shared_lock<std::shared_mutex> m_lock;
             typename std::vector<T, Allocator>::iterator m_it;
 
-            iterator(concurrent_vector* vec, std::shared_lock<std::shared_mutex> lock,
-                    typename std::vector<T, Allocator>::iterator it)
-                : m_vec(vec)
-                , m_lock(std::move(lock))
-                , m_it(it) {}
+            iterator(concurrent_vector *vec, std::shared_lock<std::shared_mutex> lock,
+                     typename std::vector<T, Allocator>::iterator it)
+                : m_vec(vec), m_lock(std::move(lock)), m_it(it) {}
         };
 
         /**

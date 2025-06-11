@@ -54,6 +54,83 @@ namespace wheel {
         explicit concurrent_unordered_map(const Allocator &alloc) : m_map(alloc) {}
 
         /**
+         * @brief Copy constructor.
+         */
+        concurrent_unordered_map(const concurrent_unordered_map &other) {
+            std::unique_lock lock(m_mutex, std::defer_lock);
+            std::shared_lock other_lock(other.m_mutex, std::defer_lock);
+
+            // Lock both mutexes without deadlock
+            std::lock(lock, other_lock);
+            m_map = other.m_map;
+        }
+
+        /**
+         * @brief Move constructor.
+         */
+        concurrent_unordered_map(concurrent_unordered_map &&other) noexcept {
+            std::unique_lock lock(m_mutex, std::defer_lock);
+            std::shared_lock other_lock(other.m_mutex, std::defer_lock);
+
+            // Lock both mutexes without deadlock
+            std::lock(lock, other_lock);
+            m_map = std::move(other.m_map);
+        }
+
+        /**
+         * @brief Copy assignment operator.
+         */
+        concurrent_unordered_map &operator=(const concurrent_unordered_map &other) {
+            if (this != &other) {
+                std::unique_lock lock(m_mutex, std::defer_lock);
+                std::shared_lock other_lock(other.m_mutex, std::defer_lock);
+
+                // Lock both mutexes without deadlock
+                std::lock(lock, other_lock);
+
+                m_map = other.m_map;
+            }
+            return *this;
+        }
+
+        /**
+         * @brief Move assignment operator.
+         */
+        concurrent_unordered_map &operator=(concurrent_unordered_map &&other) noexcept {
+            if (this != &other) {
+                std::unique_lock lock(m_mutex, std::defer_lock);
+                std::shared_lock other_lock(other.m_mutex, std::defer_lock);
+
+                // Lock both mutexes without deadlock
+                std::lock(lock, other_lock);
+                m_map = std::move(other.m_map);
+            }
+            return *this;
+        }
+
+        /**
+         * @brief Move constructor that takes an rvalue reference to an std::unordered_map.
+         * @param map The unordered_map to be moved into the concurrent_unordered_map.
+         */
+        explicit concurrent_unordered_map(std::unordered_map<Key, Value, Hash, KeyEqual, Allocator> &&map)
+            : m_map(std::move(map)) {}
+
+        /**
+         * @brief Move assignment operator from std::unordered_map.
+         *
+         * Atomically replaces the contents of the concurrent map with those of another unordered_map.
+         * The operation is thread-safe and performed under a lock.
+         *
+         * @param other The unordered_map to move from.
+         * @return Reference to this map after the move operation.
+         */
+        concurrent_unordered_map &operator=(std::unordered_map<Key, Value, Hash, KeyEqual, Allocator> &&other) {
+            std::unique_lock lock(m_mutex);
+            m_map = std::move(other);
+            return *this;
+        }
+
+        /**
          * @brief Inserts or updates an element in the container
          * @param key The key of the element to insert/update
          * @param value The value to associate with the key
