@@ -194,8 +194,9 @@ namespace wheel {
          * @param default_value The value to insert if key doesn't exist
          * @return A locked reference to the value (existing or newly created)
          */
-        template <typename V>
-        shared_guarded_ref<Value, std::shared_mutex> get_or_create_value(const Key &key, V &&default_value) {
+        template <typename ValueFactory>
+        shared_guarded_ref<Value, std::shared_mutex> get_or_create_value(const Key &key,
+                                                                         ValueFactory &&value_factory) {
             // Try with shared lock
             std::shared_lock shared_lock(m_mutex);
             auto it = m_map.find(key);
@@ -216,7 +217,7 @@ namespace wheel {
             }
 
             // insert new value
-            auto [new_it, inserted] = m_map.try_emplace(key, std::forward<V>(default_value));
+            auto [new_it, inserted] = m_map.try_emplace(key, std::forward<ValueFactory>(value_factory)());
 
             std::shared_lock new_shared_lock(m_mutex);
             unique_lock.unlock();
