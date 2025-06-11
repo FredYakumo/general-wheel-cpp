@@ -1,5 +1,5 @@
 #pragma once
-#include <mutex>
+#include <shared_mutex>
 
 namespace wheel {
     /**
@@ -10,7 +10,7 @@ namespace wheel {
      */
     template <typename T, typename Mutex> class shared_guarded_ref {
       public:
-        shared_guarded_ref(T &ref, std::unique_lock<Mutex> lock) : m_ref(ref), m_lock(std::move(lock)) {}
+        shared_guarded_ref(T &ref, std::shared_lock<Mutex> lock) : m_ref(ref), m_lock(std::move(lock)) {}
 
         // Provide access to the underlying reference
         T &get() noexcept { return m_ref; }
@@ -39,6 +39,6 @@ namespace wheel {
 
       private:
         T &m_ref;
-        std::unique_lock<Mutex> m_lock;
+        std::shared_lock<Mutex> m_lock;
     };
 } // namespace wheel
