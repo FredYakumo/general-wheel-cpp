@@ -287,17 +287,15 @@ namespace wheel {
             // Double-check pattern in case another thread inserted while upgrading
             it = m_map.find(key);
             if (it != std::cend(m_map)) {
-                std::shared_lock new_shared_lock(m_mutex);
                 unique_lock.unlock();
-                return shared_guarded_ref<Value, std::shared_mutex>(it->second, std::move(new_shared_lock));
+                return shared_guarded_ref<Value, std::shared_mutex>(it->second, std::shared_lock(m_mutex));
             }
 
             // insert new value
             auto [new_it, inserted] = m_map.try_emplace(key, std::forward<ValueFactory>(value_factory)());
 
-            std::shared_lock new_shared_lock(m_mutex);
             unique_lock.unlock();
-            return shared_guarded_ref<Value, std::shared_mutex>(new_it->second, std::move(new_shared_lock));
+            return shared_guarded_ref<Value, std::shared_mutex>(new_it->second, std::shared_lock(m_mutex));
         }
 
         /**
@@ -322,17 +320,15 @@ namespace wheel {
             // Double-check pattern in case another thread inserted while upgrading
             it = m_map.find(key);
             if (it != std::cend(m_map)) {
-                std::shared_lock new_shared_lock(m_mutex);
                 unique_lock.unlock();
-                return shared_guarded_ref<Value, std::shared_mutex>(it->second, std::move(new_shared_lock));
+                return shared_guarded_ref<Value, std::shared_mutex>(it->second, std::shared_lock(m_mutex));
             }
 
             // insert new value
             auto [new_it, inserted] = m_map.try_emplace(key, std::forward<Args>(args)...);
 
-            std::shared_lock new_shared_lock(m_mutex);
             unique_lock.unlock();
-            return shared_guarded_ref<Value, std::shared_mutex>(new_it->second, std::move(new_shared_lock));
+            return shared_guarded_ref<Value, std::shared_mutex>(new_it->second, std::shared_lock(m_mutex));
         }
 
         std::optional<Value> pop(const Key &key) {
