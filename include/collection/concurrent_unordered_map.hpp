@@ -191,12 +191,11 @@ namespace wheel {
         /**
          * @brief Gets or creates a value for the given key
          * @param key The key to look up
-         * @param value_factory A lambda that creates the default value if key doesn't exist
+         * @param value_factory A factory function that creates the default value if key doesn't exist
          * @return A locked reference to the value (existing or newly created)
          */
         template <typename ValueFactory>
-        shared_guarded_ref<Value, std::shared_mutex> get_or_create_value(const Key &key,
-                                                                         ValueFactory &&value_factory) {
+        shared_guarded_ref<Value, std::shared_mutex> get_or_create_value(const Key &key, ValueFactory &&value_factory) {
             // Try with shared lock
             std::shared_lock shared_lock(m_mutex);
             auto it = m_map.find(key);
@@ -218,6 +217,41 @@ namespace wheel {
 
             // insert new value
             auto [new_it, inserted] = m_map.try_emplace(key, std::forward<ValueFactory>(value_factory)());
+
+            std::shared_lock new_shared_lock(m_mutex);
+            unique_lock.unlock();
+            return shared_guarded_ref<Value, std::shared_mutex>(new_it->second, std::move(new_shared_lock));
+        }
+
+        /**
+         * @brief Gets or emplace a value for the given key
+         * @param key The key to look up
+         * @param Args Arguments that use to construct value directly.
+         * @return A locked reference to the value (existing or newly created)
+         */
+        template <typename... Args>
+        shared_guarded_ref<Value, std::shared_mutex> get_or_emplace_value(const Key &key, Args &&...args) {
+            // Try with shared lock
+            std::shared_lock shared_lock(m_mutex);
+            auto it = m_map.find(key);
+            if (it != std::cend(m_map)) {
+                return shared_guarded_ref<Value, std::shared_mutex>(it->second, std::move(shared_lock));
+            }
+
+            // Key not found, upgrade to unique lock
+            shared_lock.unlock();
+            std::unique_lock unique_lock(m_mutex);
+
+            // Double-check pattern in case another thread inserted while upgrading
+            it = m_map.find(key);
+            if (it != std::cend(m_map)) {
+                std::shared_lock new_shared_lock(m_mutex);
+                unique_lock.unlock();
+                return shared_guarded_ref<Value, std::shared_mutex>(it->second, std::move(new_shared_lock));
+            }
+
+            // insert new value
+            auto [new_it, inserted] = m_map.try_emplace(key, std::forward<Args>(args)...);
 
             std::shared_lock new_shared_lock(m_mutex);
             unique_lock.unlock();
