@@ -191,7 +191,7 @@ namespace wheel {
         /**
          * @brief Gets or creates a value for the given key
          * @param key The key to look up
-         * @param default_value The value to insert if key doesn't exist
+         * @param value_factory A lambda that creates the default value if key doesn't exist
          * @return A locked reference to the value (existing or newly created)
          */
         template <typename ValueFactory>
