@@ -335,6 +335,31 @@ namespace wheel {
             return shared_guarded_ref<Value, std::shared_mutex>(new_it->second, std::move(new_shared_lock));
         }
 
+        std::optional<Value> pop(const Key &key) {
+            // Try with shared lock
+            std::shared_lock shared_lock(m_mutex);
+            auto it = m_map.find(key);
+            if (it == std::cend(m_map)) {
+                return std::nullopt;
+            }
+
+            // Key found, upgrade to unique lock
+            shared_lock.unlock();
+            std::unique_lock unique_lock(m_mutex);
+
+            // Double-check pattern in case another thread removed while upgrading
+            it = m_map.find(key);
+            if (it == std::cend(m_map)) {
+                return std::nullopt;
+            }
+
+            // Get the value and remove the entry
+            Value value = std::move(it->second);
+            m_map.erase(it);
+
+            return value;
+        }
+
       private:
         std::unordered_map<Key, Value, Hash, KeyEqual, Allocator> m_map;
         mutable std::shared_mutex m_mutex;
