@@ -275,4 +275,9 @@ namespace wheel {
         size_t m_start;
     };
 
+
+    bool contains_markdown_table(const std::string &text);
+    
+    bool contains_rich_text_features(const std::string &text);
+
 } // namespace wheel
