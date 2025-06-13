@@ -27,6 +27,13 @@ target_include_directories(${PROJECT_NAME}
 # Enable testing
 enable_testing()
 
+add_executable(${PROJECT_NAME}_test ${CMAKE_CURRENT_SOURCE_DIR}/src/test.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/markdown_utils.cpp)
+target_include_directories(${PROJECT_NAME}_test
+    PUBLIC 
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
+)
+
 # Install rules
 install(TARGETS ${PROJECT_NAME}
     EXPORT ${PROJECT_NAME}Targets
