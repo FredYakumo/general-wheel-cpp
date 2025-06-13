@@ -2,6 +2,7 @@
 #include "string_utils.hpp"
 #include <regex>
 #include <sstream>
+#include "code_default_highlight.hpp"
 
 // std::regex table_pattern(R"(\|.*\|\s*\n\|[-:|]+\|\s*\n(\|.*\|\s*\n)+)");
 std::regex table_pattern(R"(\|.*\|)");
@@ -130,12 +131,12 @@ namespace wheel {
         }
 
         std::string html = R"(<!-- 引入 highlight.js -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-
-<!-- 使用代码块 -->
-<pre><code class="language-javascript">)";
-
+        <style>)" + CODE_HIGHLIGHT_CSS + R"(</style>
+        <script>)" + CODE_HIGHLIGHT_JS + R"(</script>
+        
+        <!-- 使用代码块 -->
+        <pre><code class="language-javascript">)";
+        
         html += code;
         html += R"(</code></pre>
         <!-- 初始化 highlight.js -->
