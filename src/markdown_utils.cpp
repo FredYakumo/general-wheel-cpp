@@ -123,8 +123,15 @@ namespace wheel {
 
     std::string code_block_text_to_html(const std::string &code_text) {
         std::string code;
+        // Replace < and > with their HTML entities
+        code = std::regex_replace(code, std::regex("<"), "&lt;");
+        code = std::regex_replace(code, std::regex(">"), "&gt;");
+        std::string language;
         for (const auto &line : SplitString(code_text, '\n')) {
             if (is_code_block_line(line)) {
+                if (line.length() > 3) {
+                    language = line.substr(3);  // Extract language after ```
+                }
                 continue; // 跳过代码块的开始和结束标记
             }
             code += std::string(line) + "\n"; // 保留代码行
@@ -135,7 +142,7 @@ namespace wheel {
         <script>)" + CODE_HIGHLIGHT_JS + R"(</script>
         
         <!-- 使用代码块 -->
-        <pre><code class="language-javascript">)";
+        <pre><code class="language-)" + (language.empty() ? "plaintext" : language) + R"(">)";
         
         html += code;
         html += R"(</code></pre>
