@@ -90,6 +90,7 @@ namespace wheel {
     std::regex italic_regex(R"(\*(.+?)\*)");
     std::regex strikethrough_regex(R"(~~(.+?)~~)");
     std::regex header_regex(R"(^(#{1,6})\s(.+)$)");
+    std::regex background_text_regex(R"(`([^`]+)`)");
     
     std::string markdown_rich_text_to_html(const std::string &text) {
         std::string result = text;
@@ -115,17 +116,19 @@ namespace wheel {
         result = std::regex_replace(result, bold_regex, "<strong>$1</strong>");
         result = std::regex_replace(result, italic_regex, "<em>$1</em>");
         result = std::regex_replace(result, strikethrough_regex, "<del>$1</del>");
+        result = std::regex_replace(result, background_text_regex, "<code style='background-color: #a0a0a0; padding: 2px 4px; border-radius: 3px;'>$1</code>");
+        // result = replace_str(result, "\n", "<br/>");
         
         return result;
     }
 
-    inline bool is_code_block_line(std::string_view line) { return line.find("```") == 0; }
+    inline bool is_code_block_line(std::string_view line) { return ltrim(line).find("```") == 0; }
 
     std::string code_block_text_to_html(const std::string &code_text) {
         std::string code;
         // Replace < and > with their HTML entities
-        code = std::regex_replace(code, std::regex("<"), "&lt;");
-        code = std::regex_replace(code, std::regex(">"), "&gt;");
+        code = replace_str(code, "<", "&lt;");
+        code = replace_str(code, ">", "&gt;");
         std::string language;
         for (const auto &line : SplitString(code_text, '\n')) {
             if (is_code_block_line(line)) {
@@ -144,6 +147,8 @@ namespace wheel {
         <!-- 使用代码块 -->
         <pre><code class="language-)" + (language.empty() ? "plaintext" : language) + R"(">)";
         
+        // Process indent
+        // code = replace_str(code, "\t", "    ");
         html += code;
         html += R"(</code></pre>
         <!-- 初始化 highlight.js -->
@@ -167,10 +172,10 @@ namespace wheel {
                 continue;
             std::string line{l};
 
-            // 处理代码块
+            // Process code block
             if (is_code_block_line(line)) {
                 if (!in_code_block) {
-                    // 开始代码块
+                    // Start code block
                     if (!current_node.text.empty() && !current_node.table_text && !current_node.code_text) {
                         nodes.push_back(current_node);
                         current_node = MarkdownNode();
@@ -178,7 +183,7 @@ namespace wheel {
                     in_code_block = true;
                     code_block_content = line + "\n";
                 } else {
-                    // 结束代码块
+                    // End code
                     code_block_content += line;
                     current_node.code_text = code_block_content;
                     current_node.text = code_block_content;
@@ -194,10 +199,10 @@ namespace wheel {
                 continue;
             }
 
-            // 处理表格
+            // Start table
             if (contains_markdown_table(line)) {
                 if (!in_table) {
-                    // 开始表格
+                    // start table
                     if (!current_node.text.empty() && !current_node.table_text && !current_node.code_text) {
                         nodes.push_back(current_node);
                         current_node = MarkdownNode();
@@ -205,7 +210,7 @@ namespace wheel {
                     in_table = true;
                     table_content = line + "\n";
                 } else {
-                    // 表格内容
+                    // Start table
                     table_content += line + "\n";
                 }
                 continue;
@@ -220,7 +225,7 @@ namespace wheel {
                 in_table = false;
             }
 
-            // 处理普通文本或富文本
+            // normal text or rich text
             if (contains_rich_text_features(line)) {
                 if (!current_node.rich_text) {
                     current_node.rich_text = line;
@@ -235,7 +240,7 @@ namespace wheel {
             current_node.text += line;
         }
 
-        // 添加最后一个节点
+        // Add last node
         if (!current_node.text.empty() || current_node.table_text || current_node.code_text || current_node.rich_text) {
             nodes.push_back(current_node);
         }
