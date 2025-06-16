@@ -8,7 +8,8 @@
 
 // std::regex table_pattern(R"(\|.*\|\s*\n\|[-:|]+\|\s*\n(\|.*\|\s*\n)+)");
 std::regex table_pattern(R"(\|.*\|)");
-std::regex latex_link_pattern(R"(\[.+\]\(.+\))"); // 链接
+
+std::regex single_line_latex(R"(\[.+\]\(.+\)|(?:\$[^$\n]+\$)|(?:\\[\(\[].*?\\[\)\]])|(?:\\begin\{.*?\}.*?\\end\{.*?\}))"); // 单行LaTex
 
 std::vector<std::regex> rich_text_pattern = {std::regex(R"(\*\*.+\*\*)"),     // 加粗文本
                                              std::regex(R"(\*.+\*)"),         // 斜体文本
@@ -20,7 +21,8 @@ std::vector<std::regex> rich_text_pattern = {std::regex(R"(\*\*.+\*\*)"),     //
                                              std::regex(R"(`{1,3}.+`{1,3})"), // 代码块
                                              std::regex(R"(~~.+~~)"),         // 删除线
                                              std::regex(R"(\|.*\|)"),         // 表格行（单独检测）
-                                             latex_link_pattern};
+                                            //  latex_link_pattern
+                                             };
 namespace wheel {
     bool contains_markdown_table(const std::string &text) { return std::regex_search(text, table_pattern); }
 
@@ -141,13 +143,23 @@ namespace wheel {
 
     inline bool is_code_block_line(std::string_view line) { return ltrim(line).find("```") == 0; }
 
+    inline bool is_latex_block_begin_line(std::string_view line) {
+        auto lt = to_lower_str(ltrim(line));
+        return lt.find("$$") == 0 || lt.find("\\[") == 0 || lt.find("\\begin{equation}") == 0;
+    }
+
+    inline bool is_latex_block_end_line(std::string_view line) {
+        auto lt = to_lower_str(ltrim(line));
+        return lt.find("$$") == 0 || lt.find("\\]") == 0 || lt.find("\\end{equation}") == 0;
+    }
+
     std::string code_block_text_to_html(const std::string &code_text) {
         std::string code;
         // Replace < and > with their HTML entities
         code = replace_str(code, "<", "&lt;");
         code = replace_str(code, ">", "&gt;");
         std::string language;
-        for (const auto &line : SplitString(code_text, '\n')) {
+        for (const auto &line : SplitString(code, '\n')) {
             if (is_code_block_line(line)) {
                 if (line.length() > 3) {
                     language = line.substr(3); // Extract language after ```
@@ -177,6 +189,18 @@ namespace wheel {
         return html;
     }
 
+    std::string latex_block_text_to_html(const std::string &latex_text) {
+        // Replace < and > with their HTML entities
+        std::string latex = replace_str(latex_text, "<", "&lt;");
+        latex = replace_str(latex, ">", "&gt;");
+
+        // Add MathJax script
+        std::string math_jax_script = "<script id='MathJax-script'>" + LATEX_DISPLAY_SCRIPT + "</script>";
+
+        // Wrap in a div with class for MathJax processing
+        return math_jax_script + "<div class='mathjax'>" + latex + "</div>";
+    }
+
     std::vector<MarkdownNode> parse_markdown(const std::string &markdown) {
         std::vector<MarkdownNode> nodes;
         auto lines = SplitString(markdown, '\n');
@@ -184,8 +208,10 @@ namespace wheel {
         MarkdownNode current_node;
         bool in_code_block = false;
         bool in_table = false;
+        bool in_latex_block = false;
         std::string code_block_content;
         std::string table_content;
+        std::string latex_block_content;
 
         bool on_skip_code_markdown = false;
 
@@ -230,10 +256,50 @@ namespace wheel {
                 continue;
             }
 
+            // Check if line contains LaTeX link
+            if (std::regex_search(line, single_line_latex)) {
+                if (!current_node.text.empty() && !current_node.latex_text && !current_node.table_text && !current_node.code_text) {
+                    nodes.push_back(current_node);
+                    current_node = MarkdownNode();
+                }
+                current_node.latex_text = line;
+                current_node.text = line;
+                nodes.push_back(current_node);
+                current_node = MarkdownNode();
+                continue;
+            }
+
+            if (is_latex_block_begin_line(line)) {
+                if (!in_latex_block) {
+                    // Start LaTeX block
+                    if (!current_node.text.empty() && !current_node.table_text && !current_node.code_text) {
+                        nodes.push_back(current_node);
+                        current_node = MarkdownNode();
+                    }
+                    in_latex_block = true;
+                    latex_block_content = line + "\n";
+                }
+                continue;
+            } else if (is_latex_block_end_line(line)) {
+                if (in_latex_block) {
+                    // End LaTeX block
+                    latex_block_content += line + "\n";
+                    current_node.latex_text = latex_block_content;
+                    current_node.text = latex_block_content;
+                    nodes.push_back(current_node);
+                    current_node = MarkdownNode();
+                    in_latex_block = false;
+                }
+                continue;
+            }
+
+            if (in_latex_block) {
+                latex_block_content += line + "\n";
+                continue;
+            }
+
             // Start table
-            if (contains_markdown_table(line) && 
-            !std::regex_search(line, latex_link_pattern)) ///< Avoid LaTeX Link be mistaken as a table) 
-            {
+            if (contains_markdown_table(line)) {
                 if (!in_table) {
                     // start table
                     if (!current_node.text.empty() && !current_node.table_text && !current_node.code_text) {
@@ -285,6 +351,8 @@ namespace wheel {
                 node.render_html_text = code_block_text_to_html(*node.code_text);
             } else if (node.rich_text.has_value()) {
                 node.render_html_text = markdown_rich_text_to_html(*node.rich_text);
+            } else if (node.latex_text.has_value()) {
+                node.render_html_text = latex_block_text_to_html(*node.latex_text);
             }
         }
 
