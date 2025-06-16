@@ -8,20 +8,19 @@
 
 // std::regex table_pattern(R"(\|.*\|\s*\n\|[-:|]+\|\s*\n(\|.*\|\s*\n)+)");
 std::regex table_pattern(R"(\|.*\|)");
+std::regex latex_link_pattern(R"(\[.+\]\(.+\))"); // 链接
 
-std::vector<std::regex> rich_text_pattern = {
-    std::regex(R"(\*\*.+\*\*)"),     // 加粗文本
-    std::regex(R"(\*.+\*)"),         // 斜体文本
-    std::regex(R"(\#+.+)"),          // 标题
-    std::regex(R"($$.+$$$.+$)"),     // 链接
-    std::regex(R"(!$$.+$$$.+$)"),    // 图片
-    std::regex(R"(\d+\.\s+.+)"),     // 有序列表
-    std::regex(R"([-*+]\s+.+)"),     // 无序列表
-    std::regex(R"(`{1,3}.+`{1,3})"), // 代码块
-    std::regex(R"(~~.+~~)"),         // 删除线
-    std::regex(R"(\|.*\|)"),          // 表格行（单独检测）
-    std::regex(R"(\[.+\]\(.+\))")    // 链接
-};
+std::vector<std::regex> rich_text_pattern = {std::regex(R"(\*\*.+\*\*)"),     // 加粗文本
+                                             std::regex(R"(\*.+\*)"),         // 斜体文本
+                                             std::regex(R"(\#+.+)"),          // 标题
+                                             std::regex(R"($$.+$$$.+$)"),     // 链接
+                                             std::regex(R"(!$$.+$$$.+$)"),    // 图片
+                                             std::regex(R"(\d+\.\s+.+)"),     // 有序列表
+                                             std::regex(R"([-*+]\s+.+)"),     // 无序列表
+                                             std::regex(R"(`{1,3}.+`{1,3})"), // 代码块
+                                             std::regex(R"(~~.+~~)"),         // 删除线
+                                             std::regex(R"(\|.*\|)"),         // 表格行（单独检测）
+                                             latex_link_pattern};
 namespace wheel {
     bool contains_markdown_table(const std::string &text) { return std::regex_search(text, table_pattern); }
 
@@ -104,7 +103,6 @@ namespace wheel {
         result = replace_str(result, "\\[", "&#91;"); // Replace \[ with &#91;
         result = replace_str(result, "\\]", "&#93;"); // Replace \] with &#93;
 
-    
         // Handle normal square brackets (if they should be converted to specific HTML)
         // For example, if they represent links:
         std::regex link_pattern(R"(\[(.*?)\]\((.*?)\))");
@@ -134,7 +132,7 @@ namespace wheel {
             result, background_text_regex,
             "<code style='background-color: #a0a0a0; padding: 2px 4px; border-radius: 3px;'>$1</code>");
         // result = replace_str(result, "\n", "<br/>");
-        
+
         // Add MathJax
         std::string max_jax_script = "<script id='MathJax-script'>" + LATEX_DISPLAY_SCRIPT + "</script>";
 
@@ -207,7 +205,6 @@ namespace wheel {
                     on_skip_code_markdown = false;
                 }
 
-
                 if (!in_code_block) {
                     // Start code block
                     if (!current_node.text.empty() && !current_node.table_text && !current_node.code_text) {
@@ -234,7 +231,9 @@ namespace wheel {
             }
 
             // Start table
-            if (contains_markdown_table(line)) {
+            if (contains_markdown_table(line) && 
+            !std::regex_search(line, latex_link_pattern)) ///< Avoid LaTeX Link be mistaken as a table) 
+            {
                 if (!in_table) {
                     // start table
                     if (!current_node.text.empty() && !current_node.table_text && !current_node.code_text) {
