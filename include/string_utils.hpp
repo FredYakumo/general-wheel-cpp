@@ -275,6 +275,23 @@ namespace wheel {
         size_t m_start;
     };
 
+    inline std::string to_lower_str(std::string_view str) {
+        std::string result;
+        result.reserve(str.size());
+        for (const auto &c : str) {
+            result += static_cast<char>(std::tolower(c));
+        }
+        return result;
+    }
+
+    inline std::string to_upper_str(std::string_view str) {
+        std::string result;
+        result.reserve(str.size());
+        for (const auto &c : str) {
+            result += static_cast<char>(std::toupper(c));
+        }
+        return result;
+    }
 
 
 

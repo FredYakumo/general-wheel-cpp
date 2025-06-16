@@ -1,8 +1,10 @@
 #include "markdown_utils.h"
+#include "code_default_highlight.hpp"
+#include "latex_display_script.hpp"
 #include "string_utils.hpp"
+#include <cctype>
 #include <regex>
 #include <sstream>
-#include "code_default_highlight.hpp"
 
 // std::regex table_pattern(R"(\|.*\|\s*\n\|[-:|]+\|\s*\n(\|.*\|\s*\n)+)");
 std::regex table_pattern(R"(\|.*\|)");
@@ -17,12 +19,16 @@ std::vector<std::regex> rich_text_pattern = {
     std::regex(R"([-*+]\s+.+)"),     // 无序列表
     std::regex(R"(`{1,3}.+`{1,3})"), // 代码块
     std::regex(R"(~~.+~~)"),         // 删除线
-    std::regex(R"(\|.*\|)")          // 表格行（单独检测）
+    std::regex(R"(\|.*\|)"),          // 表格行（单独检测）
+    std::regex(R"(\[.+\]\(.+\))")    // 链接
 };
 namespace wheel {
     bool contains_markdown_table(const std::string &text) { return std::regex_search(text, table_pattern); }
 
     bool contains_rich_text_features(const std::string &text) {
+        // if (text.find('[') != std::string::npos && text.find(']') != std::string::npos) {
+        //     return true;
+        // }
         for (const auto &pattern : rich_text_pattern) {
             if (std::regex_search(text, pattern)) {
                 return true;
@@ -34,7 +40,6 @@ namespace wheel {
 
     std::string markdown_table_to_html(const std::string &markdown, size_t border_width_px) {
         std::vector<std::string> lines;
-
 
         std::vector<std::vector<std::string>> table_data;
         bool in_table = false;
@@ -91,14 +96,24 @@ namespace wheel {
     std::regex strikethrough_regex(R"(~~(.+?)~~)");
     std::regex header_regex(R"(^(#{1,6})\s(.+)$)");
     std::regex background_text_regex(R"(`([^`]+)`)");
-    
+
     std::string markdown_rich_text_to_html(const std::string &text) {
         std::string result = text;
-        
+
+        // Handle escaped square brackets
+        result = replace_str(result, "\\[", "&#91;"); // Replace \[ with &#91;
+        result = replace_str(result, "\\]", "&#93;"); // Replace \] with &#93;
+
+    
+        // Handle normal square brackets (if they should be converted to specific HTML)
+        // For example, if they represent links:
+        std::regex link_pattern(R"(\[(.*?)\]\((.*?)\))");
+        result = std::regex_replace(result, link_pattern, "<a href=\"$2\">$1</a>");
+
         std::istringstream iss(result);
         std::ostringstream oss;
         std::string line;
-        
+
         while (std::getline(iss, line)) {
             std::smatch header_match;
             if (std::regex_match(line, header_match, header_regex)) {
@@ -109,17 +124,21 @@ namespace wheel {
             }
             oss << line << "\n";
         }
-        
+
         result = oss.str();
-        
         // 处理其他格式
         result = std::regex_replace(result, bold_regex, "<strong>$1</strong>");
         result = std::regex_replace(result, italic_regex, "<em>$1</em>");
         result = std::regex_replace(result, strikethrough_regex, "<del>$1</del>");
-        result = std::regex_replace(result, background_text_regex, "<code style='background-color: #a0a0a0; padding: 2px 4px; border-radius: 3px;'>$1</code>");
+        result = std::regex_replace(
+            result, background_text_regex,
+            "<code style='background-color: #a0a0a0; padding: 2px 4px; border-radius: 3px;'>$1</code>");
         // result = replace_str(result, "\n", "<br/>");
         
-        return result;
+        // Add MathJax
+        std::string max_jax_script = "<script id='MathJax-script'>" + LATEX_DISPLAY_SCRIPT + "</script>";
+
+        return max_jax_script + result;
     }
 
     inline bool is_code_block_line(std::string_view line) { return ltrim(line).find("```") == 0; }
@@ -133,7 +152,7 @@ namespace wheel {
         for (const auto &line : SplitString(code_text, '\n')) {
             if (is_code_block_line(line)) {
                 if (line.length() > 3) {
-                    language = line.substr(3);  // Extract language after ```
+                    language = line.substr(3); // Extract language after ```
                 }
                 continue; // 跳过代码块的开始和结束标记
             }
@@ -141,12 +160,15 @@ namespace wheel {
         }
 
         std::string html = R"(<!-- 引入 highlight.js -->
-        <style>)" + CODE_HIGHLIGHT_CSS + R"(</style>
-        <script>)" + CODE_HIGHLIGHT_JS + R"(</script>
+        <style>)" + CODE_HIGHLIGHT_CSS +
+                           R"(</style>
+        <script>)" + CODE_HIGHLIGHT_JS +
+                           R"(</script>
         
         <!-- 使用代码块 -->
-        <pre><code class="language-)" + (language.empty() ? "plaintext" : language) + R"(">)";
-        
+        <pre><code class="language-)" +
+                           (language.empty() ? "plaintext" : language) + R"(">)";
+
         // Process indent
         // code = replace_str(code, "\t", "    ");
         html += code;
@@ -167,6 +189,8 @@ namespace wheel {
         std::string code_block_content;
         std::string table_content;
 
+        bool on_skip_code_markdown = false;
+
         for (const auto &l : lines) {
             if (l.empty())
                 continue;
@@ -174,6 +198,16 @@ namespace wheel {
 
             // Process code block
             if (is_code_block_line(line)) {
+                // Skip ```markdown
+                auto lt = to_lower_str(ltrim(line));
+                if (lt.find("```markdown") == 0 || lt.find("```md") == 0 || lt.find("```text") == 0) {
+                    on_skip_code_markdown = true;
+                    continue;
+                } else if (lt.find("```") == 0 && on_skip_code_markdown) {
+                    on_skip_code_markdown = false;
+                }
+
+
                 if (!in_code_block) {
                     // Start code block
                     if (!current_node.text.empty() && !current_node.table_text && !current_node.code_text) {
