@@ -156,7 +156,7 @@ namespace wheel {
     std::string code_block_text_to_html(const std::string &code_text) {
         std::string code;
         // Replace < and > with their HTML entities
-        code = replace_str(code, "<", "&lt;");
+        code = replace_str(code_text, "<", "&lt;");
         code = replace_str(code, ">", "&gt;");
         std::string language;
         std::string text;
