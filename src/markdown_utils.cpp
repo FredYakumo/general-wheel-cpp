@@ -159,6 +159,7 @@ namespace wheel {
         code = replace_str(code, "<", "&lt;");
         code = replace_str(code, ">", "&gt;");
         std::string language;
+        std::string text;
         for (const auto &line : SplitString(code, '\n')) {
             if (is_code_block_line(line)) {
                 if (line.length() > 3) {
@@ -166,7 +167,7 @@ namespace wheel {
                 }
                 continue; // 跳过代码块的开始和结束标记
             }
-            code += std::string(line) + "\n"; // 保留代码行
+            text += std::string(line) + "\n"; // 保留代码行
         }
 
         std::string html = R"(<!-- 引入 highlight.js -->
@@ -181,7 +182,7 @@ namespace wheel {
 
         // Process indent
         // code = replace_str(code, "\t", "    ");
-        html += code;
+        html += text;
         html += R"(</code></pre>
         <!-- 初始化 highlight.js -->
         <script>hljs.highlightAll();</script>
@@ -340,7 +341,7 @@ namespace wheel {
         }
 
         // Add last node
-        if (!current_node.text.empty() || current_node.table_text || current_node.code_text || current_node.rich_text) {
+        if (!current_node.text.empty() || current_node.table_text || current_node.code_text || current_node.rich_text || current_node.latex_text) {
             nodes.push_back(current_node);
         }
 
