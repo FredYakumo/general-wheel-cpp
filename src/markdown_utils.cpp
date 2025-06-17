@@ -72,7 +72,7 @@ namespace wheel {
         html += "  <thead>\n    <tr>\n";
         for (const auto &cell : table_data[0]) {
             html += "      <th style=\"border: ";
-            html += std::to_string(border_width_px) + "px solid black; padding: 8px;\">" + cell + "</th>\n";
+            html += std::to_string(border_width_px) + "px solid black; padding: 8px;\">" + markdown_rich_text_to_html(cell) + "</th>\n";
         }
         html += "    </tr>\n  </thead>\n";
 
@@ -82,7 +82,7 @@ namespace wheel {
             html += "    <tr>\n";
             for (const auto &cell : table_data[i]) {
                 html += "      <td style=\"border: ";
-                html += std::to_string(border_width_px) + "px solid black; padding: 8px;\">" + cell + "</td>\n";
+                html += std::to_string(border_width_px) + "px solid black; padding: 8px;\">" + markdown_rich_text_to_html(cell) + "</td>\n";
             }
             html += "    </tr>\n";
         }
