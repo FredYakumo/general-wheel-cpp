@@ -10,6 +10,7 @@
 std::regex table_pattern(R"(\|.*\|)");
 
 std::regex single_line_latex(R"(\[.+\]\(.+\)|(?:\$[^$\n]+\$)|(?:\\[\(\[].*?\\[\)\]])|(?:\\begin\{.*?\}.*?\\end\{.*?\}))"); // 单行LaTex
+std::regex word_wrapper_latex(R"(\$.+\$)"); // LaTex单词
 
 std::vector<std::regex> rich_text_pattern = {std::regex(R"(\*\*.+\*\*)"),     // 加粗文本
                                              std::regex(R"(\*.+\*)"),         // 斜体文本
@@ -153,24 +154,23 @@ namespace wheel {
         return lt.find("$$") == 0 || lt.find("\\]") == 0 || lt.find("\\end{equation}") == 0;
     }
 
-    std::string code_block_text_to_html(const std::string &code_text) {
+    std::string code_block_text_to_html(const std::string &code_text, const std::string &language = "plaintext") {
         std::string code;
         // Replace < and > with their HTML entities
         code = replace_str(code_text, "<", "&lt;");
         code = replace_str(code, ">", "&gt;");
-        std::string language;
         std::string text;
         for (const auto &line : SplitString(code, '\n')) {
             if (is_code_block_line(line)) {
-                if (line.length() > 3) {
-                    language = line.substr(3); // Extract language after ```
-                }
                 continue; // 跳过代码块的开始和结束标记
             }
             text += std::string(line) + "\n"; // 保留代码行
         }
         std::string html = "<style>" + CODE_HIGHLIGHT_CSS + "</style>\n<script>" +
-         CODE_HIGHLIGHT_JS +"</script>\n<pre><code class=\"language-" +(language.empty() ? "plaintext" : language) + "\">\n";
+         CODE_HIGHLIGHT_JS +"</script>\n" +
+        "<div style='background-color:rgb(160, 159, 159); padding: 5px; border-top-left-radius: 5px; border-top-right-radius: 5px;'>" + 
+        (language.empty() ? "plaintext" : language) + "</div><br/>\n" +
+         "<pre><code class=\"language-" + (language.empty() ? "plaintext" : language) + "\">\n";
 
         // Process indent
         text = replace_str(text, "\t", "  ");
@@ -231,6 +231,9 @@ namespace wheel {
                     }
                     in_code_block = true;
                     code_block_content = line + "\n";
+                    if (line.length() > 3) {
+                        *current_node.code_language = line.substr(3); // Extract language after ```
+                    }
                 } else {
                     // End code
                     code_block_content += line;
@@ -358,7 +361,7 @@ namespace wheel {
             if (node.table_text.has_value()) {
                 node.render_html_text = markdown_table_to_html(*node.table_text);
             } else if (node.code_text.has_value()) {
-                node.render_html_text = code_block_text_to_html(*node.code_text);
+                node.render_html_text = code_block_text_to_html(*node.code_text, node.latex_text.value_or("plaintext"));
             } else if (node.rich_text.has_value()) {
                 node.render_html_text = markdown_rich_text_to_html(*node.rich_text);
             } else if (node.latex_text.has_value()) {

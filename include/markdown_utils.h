@@ -15,6 +15,7 @@ namespace wheel {
         std::optional<std::string> table_text;  // 如果存在markdown表格
         std::optional<std::string> rich_text;   // 如果存在富文本
         std::optional<std::string> code_text;   // 如果存在代码块
+        std::optional<std::string> code_language;
         std::optional<std::string> latex_text; // 如果存在latex块
         std::optional<std::string> render_html_text; // 转换为html后的内容
     };
