@@ -170,13 +170,13 @@ namespace wheel {
             text += std::string(line) + "\n"; // 保留代码行
         }
         std::string html = "<style>" + CODE_HIGHLIGHT_CSS + "</style>\n<script>" +
-         CODE_HIGHLIGHT_JS +"(</script>\n<pre><code class=\"language-)" +(language.empty() ? "plaintext" : language) + "(\">)\n";
+         CODE_HIGHLIGHT_JS +"</script>\n<pre><code class=\"language-" +(language.empty() ? "plaintext" : language) + "\">\n";
 
         // Process indent
         text = replace_str(text, "\t", "  ");
         
         html += text;
-        html += "</code></pre>\n<script>hljs.highlightAll();</script>)";
+        html += "</code></pre>\n<script>hljs.highlightAll();</script>";
         return html;
     }
 
