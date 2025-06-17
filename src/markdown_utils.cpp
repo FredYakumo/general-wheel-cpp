@@ -169,24 +169,14 @@ namespace wheel {
             }
             text += std::string(line) + "\n"; // 保留代码行
         }
-
-        std::string html = R"(<!-- 引入 highlight.js -->
-        <style>)" + CODE_HIGHLIGHT_CSS +
-                           R"(</style>
-        <script>)" + CODE_HIGHLIGHT_JS +
-                           R"(</script>
-        
-        <!-- 使用代码块 -->
-        <pre><code class="language-)" +
-                           (language.empty() ? "plaintext" : language) + R"(">)";
+        std::string html = "<style>" + CODE_HIGHLIGHT_CSS + "</style>\n<script>" +
+         CODE_HIGHLIGHT_JS +"(</script>\n<pre><code class=\"language-)" +(language.empty() ? "plaintext" : language) + "(\">)\n";
 
         // Process indent
-        // code = replace_str(code, "\t", "    ");
+        text = replace_str(text, "\t", "  ");
+        
         html += text;
-        html += R"(</code></pre>
-        <!-- 初始化 highlight.js -->
-        <script>hljs.highlightAll();</script>
-        )";
+        html += "</code></pre>\n<script>hljs.highlightAll();</script>)";
         return html;
     }
 
