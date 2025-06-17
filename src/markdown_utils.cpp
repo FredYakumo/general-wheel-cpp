@@ -210,6 +210,7 @@ namespace wheel {
         bool in_code_block = false;
         bool in_table = false;
         bool in_latex_block = false;
+        bool in_rich_text_block = false;
         std::string code_block_content;
         std::string table_content;
         std::string latex_block_content;
@@ -327,10 +328,28 @@ namespace wheel {
 
             // normal text or rich text
             if (contains_rich_text_features(line)) {
+                if (!in_rich_text_block) {
+                    // Start rich text block
+                    if (!current_node.text.empty() && !current_node.table_text && !current_node.code_text) {
+                        nodes.push_back(current_node);
+                        current_node = MarkdownNode();
+                    }
+                    in_rich_text_block = true;
+                }
+
+
                 if (!current_node.rich_text) {
                     current_node.rich_text = line;
                 } else {
                     *current_node.rich_text += "\n" + line;
+                }
+            } else {
+                in_rich_text_block = false;
+                if (current_node.rich_text.has_value()) {
+                    // 如果之前有富文本，先保存
+                    current_node.render_html_text = markdown_rich_text_to_html(*current_node.rich_text);
+                    nodes.push_back(current_node);
+                    current_node = MarkdownNode();
                 }
             }
 
