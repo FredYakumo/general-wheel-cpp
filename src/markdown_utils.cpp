@@ -361,7 +361,7 @@ namespace wheel {
             if (node.table_text.has_value()) {
                 node.render_html_text = markdown_table_to_html(*node.table_text);
             } else if (node.code_text.has_value()) {
-                node.render_html_text = code_block_text_to_html(*node.code_text, node.latex_text.value_or("plaintext"));
+                node.render_html_text = code_block_text_to_html(*node.code_text, node.code_language.value_or("plaintext"));
             } else if (node.rich_text.has_value()) {
                 node.render_html_text = markdown_rich_text_to_html(*node.rich_text);
             } else if (node.latex_text.has_value()) {
