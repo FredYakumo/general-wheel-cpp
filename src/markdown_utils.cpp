@@ -163,10 +163,8 @@ namespace wheel {
     }
 
     std::string code_block_text_to_html(const std::string &code_text, const std::string &language = "plaintext") {
-        std::string code;
-
         std::string text;
-        for (const auto &line : SplitString(code, '\n')) {
+        for (const auto &line : SplitString(code_text, '\n')) {
             if (is_code_block_line(line)) {
                 continue; // 跳过代码块的开始和结束标记
             }
@@ -234,6 +232,7 @@ namespace wheel {
                     if (!current_node.text.empty() && !current_node.table_text && !current_node.code_text) {
                         nodes.push_back(current_node);
                         current_node = MarkdownNode();
+                        code_block_content = std::string();
                     }
                     in_code_block = true;
                     // code_block_content = line + "\n";
@@ -246,7 +245,6 @@ namespace wheel {
                     // code_block_content += line;
                     current_node.code_text = code_block_content;
                     current_node.text = code_block_content;
-                    code_block_content = std::string();
                     nodes.push_back(current_node);
                     current_node = MarkdownNode();
                     in_code_block = false;
