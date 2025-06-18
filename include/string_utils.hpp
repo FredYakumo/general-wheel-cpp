@@ -300,8 +300,6 @@ namespace wheel {
         for (unsigned char c : str) {
             if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
                 result += c;
-            } else if (c == ' ') {
-                result += '+';
             } else {
                 result += '%';
                 result += "0123456789ABCDEF"[c >> 4];
