@@ -107,8 +107,12 @@ namespace wheel {
         std::string result = text;
 
         // Handle escaped square brackets
-        result = replace_str(result, "\\[", "&#91;"); // Replace \[ with &#91;
-        result = replace_str(result, "\\]", "&#93;"); // Replace \] with &#93;
+        // result = replace_str(result, "\\[", "&#91;"); // Replace \[ with &#91;
+        // result = replace_str(result, "\\]", "&#93;"); // Replace \] with &#93;
+
+        // Replace < and > with their HTML entities
+        result = replace_str(text, "<", "&lt;");
+        result = replace_str(text, ">", "&gt;");
 
         // Handle normal square brackets (if they should be converted to specific HTML)
         // For example, if they represent links:
@@ -139,10 +143,6 @@ namespace wheel {
             result, background_text_regex,
             "<code style='background-color: #a0a0a0; padding: 2px 4px; border-radius: 3px;'>$1</code>");
         // result = replace_str(result, "\n", "<br/>");
-
-        // Replace < and > with their HTML entities
-        result = replace_str(text, "<", "&lt;");
-        result = replace_str(text, ">", "&gt;");
 
         // Add MathJax
         std::string max_jax_script = "<script id='MathJax-script'>" + LATEX_DISPLAY_SCRIPT + "</script>";
