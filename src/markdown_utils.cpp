@@ -140,6 +140,10 @@ namespace wheel {
             "<code style='background-color: #a0a0a0; padding: 2px 4px; border-radius: 3px;'>$1</code>");
         // result = replace_str(result, "\n", "<br/>");
 
+        // Replace < and > with their HTML entities
+        result = replace_str(text, "<", "&lt;");
+        result = replace_str(text, ">", "&gt;");
+
         // Add MathJax
         std::string max_jax_script = "<script id='MathJax-script'>" + LATEX_DISPLAY_SCRIPT + "</script>";
 
@@ -171,6 +175,9 @@ namespace wheel {
         std::string html = "<style>" + CODE_HIGHLIGHT_CSS + "</style>\n<script>" + CODE_HIGHLIGHT_JS + "</script>";
         // Process indent
         text = replace_str(text, "\t", "  ");
+        // Replace < and > with their HTML entities
+        text = replace_str(text, "<", "&lt;");
+        text = replace_str(text, ">", "&gt;");
         html += "<div style='background-color:rgb(160, 159, 159); padding: 1px; border-top-left-radius: 5px; "
                 "border-top-right-radius: 5px;'>" +
                 (language.empty() ? "plaintext" : language) + "</div>\n";
@@ -369,12 +376,6 @@ namespace wheel {
                 node.render_html_text = markdown_rich_text_to_html(*node.rich_text);
             } else if (node.latex_text.has_value()) {
                 node.render_html_text = latex_block_text_to_html(*node.latex_text);
-            }
-
-            if (node.render_html_text.has_value()) {
-                // Replace < and > with their HTML entities
-                node.render_html_text = replace_str(*node.render_html_text, "<", "&lt;");
-                node.render_html_text = replace_str(*node.render_html_text, ">", "&gt;");
             }
         }
 
