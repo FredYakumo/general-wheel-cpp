@@ -245,9 +245,9 @@ namespace wheel {
                     // End code
                     // code_block_content += line;
                     current_node.code_text = code_block_content;
-                    current_node.text = std::move(code_block_content);
+                    current_node.text = code_block_content;
                     code_block_content = std::string();
-                    nodes.emplace_back(std::move(current_node));
+                    nodes.push_back(current_node);
                     current_node = MarkdownNode();
                     in_code_block = false;
                 }
