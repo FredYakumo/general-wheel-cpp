@@ -293,6 +293,22 @@ namespace wheel {
         return result;
     }
 
+    inline std::string url_encode(std::string_view str) {
+        std::string result;
+        result.reserve(str.size() * 3); // Reserve space for potential encoding
 
+        for (unsigned char c : str) {
+            if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+                result += c;
+            } else if (c == ' ') {
+                result += '+';
+            } else {
+                result += '%';
+                result += "0123456789ABCDEF"[c >> 4];
+                result += "0123456789ABCDEF"[c & 15];
+            }
+        }
+        return result;
+    }
 
 } // namespace wheel
