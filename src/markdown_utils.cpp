@@ -9,21 +9,23 @@
 // std::regex table_pattern(R"(\|.*\|\s*\n\|[-:|]+\|\s*\n(\|.*\|\s*\n)+)");
 std::regex table_pattern(R"(\|.*\|)");
 
-std::regex single_line_latex(R"(\[.+\]\(.+\)|(?:\$[^$\n]+\$)|(?:\\[\(\[].*?\\[\)\]])|(?:\\begin\{.*?\}.*?\\end\{.*?\}))"); // 单行LaTex
-std::regex word_wrapper_latex(R"(\$.+\$)"); // LaTex单词
+std::regex single_line_latex(
+    R"(\[.+\]\(.+\)|(?:\$[^$\n]+\$)|(?:\\[\(\[].*?\\[\)\]])|(?:\\begin\{.*?\}.*?\\end\{.*?\}))"); // 单行LaTex
+std::regex word_wrapper_latex(R"(\$.+\$)");                                                       // LaTex单词
 
-std::vector<std::regex> rich_text_pattern = {std::regex(R"(\*\*.+\*\*)"),     // 加粗文本
-                                             std::regex(R"(\*.+\*)"),         // 斜体文本
-                                             std::regex(R"(\#+.+)"),          // 标题
-                                             std::regex(R"($$.+$$$.+$)"),     // 链接
-                                             std::regex(R"(!$$.+$$$.+$)"),    // 图片
-                                             std::regex(R"(\d+\.\s+.+)"),     // 有序列表
-                                             std::regex(R"([-*+]\s+.+)"),     // 无序列表
-                                             std::regex(R"(`{1,3}.+`{1,3})"), // 代码块
-                                             std::regex(R"(~~.+~~)"),         // 删除线
-                                             std::regex(R"(\|.*\|)"),         // 表格行（单独检测）
-                                            //  latex_link_pattern
-                                             };
+std::vector<std::regex> rich_text_pattern = {
+    std::regex(R"(\*\*.+\*\*)"),     // 加粗文本
+    std::regex(R"(\*.+\*)"),         // 斜体文本
+    std::regex(R"(\#+.+)"),          // 标题
+    std::regex(R"($$.+$$$.+$)"),     // 链接
+    std::regex(R"(!$$.+$$$.+$)"),    // 图片
+    std::regex(R"(\d+\.\s+.+)"),     // 有序列表
+    std::regex(R"([-*+]\s+.+)"),     // 无序列表
+    std::regex(R"(`{1,3}.+`{1,3})"), // 代码块
+    std::regex(R"(~~.+~~)"),         // 删除线
+    std::regex(R"(\|.*\|)"),         // 表格行（单独检测）
+                                     //  latex_link_pattern
+};
 namespace wheel {
     bool contains_markdown_table(const std::string &text) { return std::regex_search(text, table_pattern); }
 
@@ -73,7 +75,8 @@ namespace wheel {
         html += "  <thead>\n    <tr>\n";
         for (const auto &cell : table_data[0]) {
             html += "      <th style=\"border: ";
-            html += std::to_string(border_width_px) + "px solid black; padding: 8px;\">" + markdown_rich_text_to_html(cell) + "</th>\n";
+            html += std::to_string(border_width_px) + "px solid black; padding: 8px;\">" +
+                    markdown_rich_text_to_html(cell) + "</th>\n";
         }
         html += "    </tr>\n  </thead>\n";
 
@@ -83,7 +86,8 @@ namespace wheel {
             html += "    <tr>\n";
             for (const auto &cell : table_data[i]) {
                 html += "      <td style=\"border: ";
-                html += std::to_string(border_width_px) + "px solid black; padding: 8px;\">" + markdown_rich_text_to_html(cell) + "</td>\n";
+                html += std::to_string(border_width_px) + "px solid black; padding: 8px;\">" +
+                        markdown_rich_text_to_html(cell) + "</td>\n";
             }
             html += "    </tr>\n";
         }
@@ -156,9 +160,7 @@ namespace wheel {
 
     std::string code_block_text_to_html(const std::string &code_text, const std::string &language = "plaintext") {
         std::string code;
-        // Replace < and > with their HTML entities
-        code = replace_str(code_text, "<", "&lt;");
-        code = replace_str(code, ">", "&gt;");
+
         std::string text;
         for (const auto &line : SplitString(code, '\n')) {
             if (is_code_block_line(line)) {
@@ -166,16 +168,13 @@ namespace wheel {
             }
             text += std::string(line) + "\n"; // 保留代码行
         }
-        std::string html = "<style>" + CODE_HIGHLIGHT_CSS + "</style>\n<script>" +
-         CODE_HIGHLIGHT_JS +"</script>\n" +
-        "<div style='background-color:rgb(160, 159, 159); padding: 5px; border-top-left-radius: 5px; border-top-right-radius: 5px;'>" + 
-        (language.empty() ? "plaintext" : language) + "</div><br/>\n" +
-         "<pre><code class=\"language-" + (language.empty() ? "plaintext" : language) + "\">\n";
-
+        std::string html = "<style>" + CODE_HIGHLIGHT_CSS + "</style>\n<script>" + CODE_HIGHLIGHT_JS + "</script>";
         // Process indent
         text = replace_str(text, "\t", "  ");
-        
-        html += text;
+        html += "<div style='background-color:rgb(160, 159, 159); padding: 1px; border-top-left-radius: 5px; "
+                "border-top-right-radius: 5px;'>" +
+                (language.empty() ? "plaintext" : language) + "</div>\n";
+        html += "<pre><code class=\"language-" + (language.empty() ? "plaintext" : language) + "\">\n" + text;
         html += "</code></pre>\n<script>hljs.highlightAll();</script>";
         return html;
     }
@@ -230,13 +229,14 @@ namespace wheel {
                         current_node = MarkdownNode();
                     }
                     in_code_block = true;
-                    code_block_content = line + "\n";
+                    // code_block_content = line + "\n";
                     if (line.length() > 3) {
-                        *current_node.code_language = line.substr(3); // Extract language after ```
+                        current_node.code_language =
+                            replace_str(ltrim(rtrim(line)), "```", ""); // Extract language after ```
                     }
                 } else {
                     // End code
-                    code_block_content += line;
+                    // code_block_content += line;
                     current_node.code_text = code_block_content;
                     current_node.text = code_block_content;
                     nodes.push_back(current_node);
@@ -253,7 +253,8 @@ namespace wheel {
 
             // Check if line contains LaTeX link
             if (std::regex_search(line, single_line_latex)) {
-                if (!current_node.text.empty() && !current_node.latex_text && !current_node.table_text && !current_node.code_text) {
+                if (!current_node.text.empty() && !current_node.latex_text && !current_node.table_text &&
+                    !current_node.code_text) {
                     nodes.push_back(current_node);
                     current_node = MarkdownNode();
                 }
@@ -330,7 +331,6 @@ namespace wheel {
                     in_rich_text_block = true;
                 }
 
-
                 if (!current_node.rich_text) {
                     current_node.rich_text = line;
                 } else {
@@ -353,7 +353,8 @@ namespace wheel {
         }
 
         // Add last node
-        if (!current_node.text.empty() || current_node.table_text || current_node.code_text || current_node.rich_text || current_node.latex_text) {
+        if (!current_node.text.empty() || current_node.table_text || current_node.code_text || current_node.rich_text ||
+            current_node.latex_text) {
             nodes.push_back(current_node);
         }
 
@@ -361,11 +362,18 @@ namespace wheel {
             if (node.table_text.has_value()) {
                 node.render_html_text = markdown_table_to_html(*node.table_text);
             } else if (node.code_text.has_value()) {
-                node.render_html_text = code_block_text_to_html(*node.code_text, node.code_language.value_or("plaintext"));
+                node.render_html_text =
+                    code_block_text_to_html(*node.code_text, node.code_language.value_or("plaintext"));
             } else if (node.rich_text.has_value()) {
                 node.render_html_text = markdown_rich_text_to_html(*node.rich_text);
             } else if (node.latex_text.has_value()) {
                 node.render_html_text = latex_block_text_to_html(*node.latex_text);
+            }
+
+            if (node.render_html_text.has_value()) {
+                // Replace < and > with their HTML entities
+                node.render_html_text = replace_str(*node.render_html_text, "<", "&lt;");
+                node.render_html_text = replace_str(*node.render_html_text, ">", "&gt;");
             }
         }
 
