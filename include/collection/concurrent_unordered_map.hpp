@@ -33,6 +33,9 @@ namespace wheel {
     template <typename Key, typename Value, typename Hash = std::hash<Key>, typename KeyEqual = std::equal_to<Key>,
               typename Allocator = std::allocator<std::pair<const Key, Value>>>
     class concurrent_unordered_map {
+      private:
+        template <class Lock, class Map> class range_proxy;
+
       public:
         using key_type = Key;
         using mapped_type = Value;
@@ -241,6 +244,26 @@ namespace wheel {
         }
 
         /**
+         * @brief Returns a range-like object for read-only iteration.
+         * The returned proxy object holds a shared lock for the duration of the iteration.
+         * @return A proxy object with begin() and end() methods.
+         */
+        auto iter() const {
+            return range_proxy<std::shared_lock<std::shared_mutex>,
+                               const std::unordered_map<Key, Value, Hash, KeyEqual, Allocator>>{m_map, m_mutex};
+        }
+
+        /**
+         * @brief Returns a range-like object for mutable iteration.
+         * The returned proxy object holds a unique lock for the duration of the iteration.
+         * @return A proxy object with begin() and end() methods.
+         */
+        auto iter() {
+            return range_proxy<std::unique_lock<std::shared_mutex>,
+                               std::unordered_map<Key, Value, Hash, KeyEqual, Allocator>>{m_map, m_mutex};
+        }
+
+        /**
          * @brief Provides thread-safe access to the underlying container (read-only)
          * @tparam Func Callable type accepting const reference to the underlying map
          * @return Result of the function invocation
@@ -357,6 +380,18 @@ namespace wheel {
         }
 
       private:
+        template <class Lock, class Map> class range_proxy {
+          public:
+            range_proxy(Map &map, typename Lock::mutex_type &mutex) : map_(map), lock_(mutex) {}
+
+            auto begin() { return map_.begin(); }
+            auto end() { return map_.end(); }
+
+          private:
+            Map &map_;
+            Lock lock_;
+        };
+
         std::unordered_map<Key, Value, Hash, KeyEqual, Allocator> m_map;
         mutable std::shared_mutex m_mutex;
     };
