@@ -341,4 +341,10 @@ namespace wheel {
 namespace std {
 template <>
 struct tuple_size<wheel::SplitString> : std::integral_constant<size_t, 2> {};
+
+template <size_t I>
+struct tuple_element<I, wheel::SplitString> {
+    static_assert(I < 2, "Index out of bounds for SplitString structured binding");
+    using type = std::string_view;
+};
 } // namespace std
