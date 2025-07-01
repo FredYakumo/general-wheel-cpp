@@ -3,6 +3,7 @@
 #include <functional>
 #include <string>
 #include <string_view>
+#include <tuple>
 
 namespace wheel {
 
@@ -225,6 +226,32 @@ namespace wheel {
         SplitString(const std::string_view str, const char delimiter)
             : m_str(str), m_delimiter(delimiter), m_start(0) {}
 
+        /**
+         * @brief Gets the I-th component of the split string.
+         * @tparam I The index of the component to retrieve.
+         * @return A string_view of the I-th component.
+         * @note This enables structured bindings, e.g., auto [key, value] = SplitString("key=value", '=');
+         */
+        template <size_t I>
+        std::string_view get() const {
+            static_assert(I < 2, "Index out of bounds for SplitString structured binding");
+            const size_t pos = m_str.find(m_delimiter);
+
+            if (pos == std::string_view::npos) {
+                if constexpr (I == 0) {
+                    return m_str;
+                } else {
+                    return {};
+                }
+            }
+
+            if constexpr (I == 0) {
+                return m_str.substr(0, pos);
+            } else { // I == 1
+                return m_str.substr(pos + 1);
+            }
+        }
+
         class Iterator {
           public:
             Iterator(const std::string_view str, const char delimiter, const size_t start)
@@ -310,3 +337,8 @@ namespace wheel {
     }
 
 } // namespace wheel
+
+namespace std {
+template <>
+struct tuple_size<wheel::SplitString> : std::integral_constant<size_t, 2> {};
+} // namespace std
