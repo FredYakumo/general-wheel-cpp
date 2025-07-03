@@ -241,7 +241,7 @@ namespace wheel {
                 if constexpr (I == 0) {
                     return m_str;
                 } else {
-                    return {};
+                    throw std::out_of_range("SplitString has no second component");
                 }
             }
 
