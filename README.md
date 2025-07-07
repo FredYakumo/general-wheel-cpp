@@ -7,6 +7,7 @@ A modern C++ utility library providing thread-safe collections and other general
 - Thread-safe collections:
   - Concurrent unordered map
   - Concurrent vector
+  - Concurrent hashset
 
 - String utilities:
   - UTF-8 string manipulation
