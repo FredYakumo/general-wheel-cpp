@@ -51,6 +51,26 @@ namespace wheel {
          */
         explicit concurrent_vector(std::vector<T, Allocator> &&other) : m_vec(std::move(other)) {}
 
+        /**
+         * @brief Copy constructor
+         */
+        concurrent_vector(const concurrent_vector &other) {
+            std::unique_lock lock1(m_mutex, std::defer_lock);
+            std::shared_lock lock2(other.m_mutex, std::defer_lock);
+            std::lock(lock1, lock2);
+            m_vec = other.m_vec;
+        }
+
+        /**
+         * @brief Move constructor
+         */
+        concurrent_vector(concurrent_vector &&other) noexcept {
+            std::unique_lock lock1(m_mutex, std::defer_lock);
+            std::shared_lock lock2(other.m_mutex, std::defer_lock);
+            std::lock(lock1, lock2);
+            m_vec = std::move(other.m_vec);
+        }
+
         concurrent_vector &operator=(const concurrent_vector &other) {
             if (this != &other) {
                 // Lock both vectors to prevent data races
