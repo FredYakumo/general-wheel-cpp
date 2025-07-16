@@ -157,12 +157,13 @@ namespace wheel {
          * @return A locked reference to the value if found, empty otherwise
          */
         std::optional<shared_guarded_ref<const Value, std::shared_mutex>> find(const Key &key) const {
-            std::shared_lock lock(m_mutex);
+            auto lock = std::shared_lock(m_mutex);
             auto it = m_map.find(key);
             if (it != std::cend(m_map)) {
                 return shared_guarded_ref<const Value, std::shared_mutex>(it->second, std::move(lock));
             }
-            return std::nullopt;
+            // Move the lock into a temporary guarded ref to ensure it's held until the optional is destroyed
+            return std::optional<shared_guarded_ref<const Value, std::shared_mutex>>();
         }
 
         /**
