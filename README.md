@@ -63,35 +63,47 @@ A friendly modern C++ toolkit that makes your life easier with thread-safe colle
   std::vector<float> vec1 = {1.0f, 2.0f, 3.0f, 4.0f};
   std::vector<float> vec2 = {5.0f, 6.0f, 7.0f, 8.0f};
 
-  // Calculate dot product with SIMD optimization
-  float dot = wheel::linalg_boost::dot_product(vec1.data(), vec2.data(), vec1.size());
-
-  // Calculate cosine similarity with platform-specific optimizations 
-  float similarity = wheel::linalg_boost::cosine_similarity(vec1.data(), vec2.data(), vec1.size());
+  float dot1 = wheel::linalg_boost::dot_product(vec1.data(), vec2.data(), vec1.size());
+  float similarity1 = wheel::linalg_boost::cosine_similarity(vec1.data(), vec2.data(), vec1.size());
   
-  // Batch processing for multiple vectors against one reference
+
+  float dot2 = wheel::linalg_boost::dot_product(vec1, vec2);
+  float similarity2 = wheel::linalg_boost::cosine_similarity(vec1, vec2);
+  
+
+  // Batch compute optimized version
+
   const size_t batch_size = 100;
   const size_t vec_size = 128;
+  
+
   std::vector<const float*> batch_vectors(batch_size);
   std::vector<float> results(batch_size);
   
-  // Calculate dot products for all vectors in batch against reference vector
+
   wheel::linalg_boost::batch_dot_product(batch_vectors.data(), vec2.data(), 
-                                         vec_size, batch_size, results.data());
+                                        vec_size, batch_size, results.data());
   
-  // Calculate similarities for all vectors in batch against reference vector
   wheel::linalg_boost::batch_cosine_similarity(batch_vectors.data(), vec2.data(), 
                                               vec_size, batch_size, results.data());
-                                              
+  
+  // Find top-k most similar vector
+  std::vector<std::vector<float>> vectors(batch_size, std::vector<float>(vec_size));
+  
+  std::vector<float> dot_results = wheel::linalg_boost::batch_dot_product(vectors, vec2);
+  std::vector<float> similarity_results = wheel::linalg_boost::batch_cosine_similarity(vectors, vec2);
+  
   // Find top-k most similar vectors
   const size_t k = 5;
   std::vector<size_t> indices(k);
   std::vector<float> scores(k);
   
   wheel::linalg_boost::top_k_similar(batch_vectors.data(), vec2.data(), vec_size,
-                                     batch_size, k, indices.data(), scores.data());
+                                    batch_size, k, indices.data(), scores.data());
   
-  // Now indices contains indices of top-k similar vectors and scores contains their similarity scores
+  auto [top_indices, top_scores] = wheel::linalg_boost::top_k_similar(vectors, vec2, k);
+  
+
   ```
 
 ### Thread Safety Tool `MutexData`
