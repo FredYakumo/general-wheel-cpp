@@ -15,7 +15,13 @@ A friendly modern C++ toolkit that makes your life easier with thread-safe colle
   - Split strings
   - Join strings with sep char
 
-- **Thread Safety Too`MutexData`: Wrap your data to make it thread-safe automatically
+- **Linear Algebra Boost**:
+  - SIMD-optimized vector operations for performance-critical code
+  - Platform-specific optimizations (NEON for ARM64)
+  - Fast `dot_product` and `cosine_similarity` calculations
+  - Automatically selects best implementation for your hardware
+
+- **Thread Safety Tool `MutexData`**: Wrap your data to make it thread-safe automatically
   - Safe locking patterns that prevent deadlocks
   - Controlled access to shared data without race conditions
 
@@ -113,6 +119,19 @@ protected_data.modify([](UserData& data) {
 auto name = protected_data.read([](const UserData& data) {
     return data.name;  // Returns "丁真"
 });
+
+// Linear algebra optimized operations
+#include <linalg_boost/linalg_boost.hpp>
+
+// Create test vectors
+std::vector<float> vec1 = {1.0f, 2.0f, 3.0f, 4.0f};
+std::vector<float> vec2 = {5.0f, 6.0f, 7.0f, 8.0f};
+
+// Calculate dot product with SIMD optimization
+float dot = wheel::linalg_boost::dot_product(vec1.data(), vec2.data(), vec1.size());
+
+// Calculate cosine similarity with platform-specific optimizations 
+float similarity = wheel::linalg_boost::cosine_similarity(vec1.data(), vec2.data(), vec1.size());
 ```
 
 ## License
