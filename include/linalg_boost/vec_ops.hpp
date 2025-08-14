@@ -563,9 +563,10 @@ namespace wheel::linalg_boost::detail {
                 size_t blocks_copy = blocks;
 
                 asm volatile(
-                    // Initialize accumulators for dot products and squared sums
+                    // Initialize accumulators
                     "eor v0.16b, v0.16b, v0.16b           \n" // dot0 = 0
                     "eor v1.16b, v1.16b, v1.16b           \n" // dot1 = 0
+
                     "eor v3.16b, v3.16b, v3.16b           \n" // aa0 = 0
                     "eor v5.16b, v5.16b, v5.16b           \n" // aa1 = 0
 
@@ -575,7 +576,7 @@ namespace wheel::linalg_boost::detail {
                     "ld1 {v7.4s}, [%[pa1]], #16            \n" // Load 4 floats from a1
                     "ld1 {v2.4s}, [%[pb]], #16             \n" // Load 4 floats from b
 
-                    // Calculate dot products and squared sums
+                    // Calculate
                     "fmla v0.4s, v6.4s, v2.4s              \n" // dot0 += a0 * b
                     "fmla v1.4s, v7.4s, v2.4s              \n" // dot1 += a1 * b
                     "fmla v3.4s, v6.4s, v6.4s              \n" // aa0 += a0 * a0
