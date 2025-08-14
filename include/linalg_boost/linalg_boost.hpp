@@ -46,7 +46,7 @@ namespace wheel::linalg_boost {
             throw std::invalid_argument("cosine_similarity: size must > 0");
 #ifdef __aarch64__
 #ifdef LINALG_USE_ASM
-        return detail::cosine_similarity_asm_aarch64(a, b, size);
+        return detail::cosine_similarity_asm_arm64(a, b, size);
 #else
         return detail::cosine_similarity_neon(a, b, size);
 #endif
@@ -71,7 +71,7 @@ namespace wheel::linalg_boost {
     inline void batch_cosine_similarity(const float **a, const float *b, size_t n, size_t batch_size, float *results) {
 #ifdef LINALG_USE_ASM
 #ifdef __aarch64__
-        detail::batch_cosine_similarity_asm_aarch64(a, b, n, batch_size, results);
+        detail::batch_cosine_similarity_asm_arm64(a, b, n, batch_size, results);
         return;
 #endif // __aarch64__
 #endif // LINALG_USE_ASM
