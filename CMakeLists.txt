@@ -10,6 +10,23 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 
+
+# Define LINALG_USE_ASM as a configurable option, default ON for ARM64 platforms
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+    option(LINALG_USE_ASM "Enable assembly optimizations for linear algebra operations" ON)
+else()
+    option(LINALG_USE_ASM "Enable assembly optimizations for linear algebra operations" OFF)
+endif()
+
+# Output platform information
+message(STATUS "Build platform: ${CMAKE_SYSTEM_NAME}")
+message(STATUS "Processor: ${CMAKE_SYSTEM_PROCESSOR}")
+message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+
+# Output the status of the LINALG_USE_ASM option
+message(STATUS "Linear algebra assembly optimizations (LINALG_USE_ASM): ${LINALG_USE_ASM}")
+
+
 # Add source files
 file(GLOB_RECURSE SOURCES 
     "src/*.cpp"
@@ -26,6 +43,11 @@ target_include_directories(${PROJECT_NAME}
         $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
 )
 
+# Apply LINALG_USE_ASM definition to the main library if enabled
+if(LINALG_USE_ASM)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC LINALG_USE_ASM)
+endif()
+
 # Enable testing
 enable_testing()
 
@@ -35,6 +57,11 @@ target_include_directories(${PROJECT_NAME}_test
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
 )
+
+# Apply the same LINALG_USE_ASM definition to the test executable if enabled
+if(LINALG_USE_ASM)
+    target_compile_definitions(${PROJECT_NAME}_test PRIVATE LINALG_USE_ASM)
+endif()
 
 # Install rules
 install(TARGETS ${PROJECT_NAME}
