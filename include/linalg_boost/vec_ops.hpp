@@ -3,12 +3,12 @@
 #include <cmath>
 #include <cstddef>
 
-#if defined(__aarch64__)
+#ifdef __aarch64__
 #include <arm_neon.h>
 #endif
 
 namespace wheel::linalg_boost::detail {
-#if defined(__aarch64__)
+#ifdef __aarch64__
     /**
      * @brief NEON-optimized implementation of dot product
      *
@@ -122,7 +122,7 @@ namespace wheel::linalg_boost::detail {
      * @note Processes elements in 4-float chunks, with tail handling in C++
      * @note Enable via CMake option LINALG_USE_ASM (ON by default on AArch64)
      */
-#if defined(LINALG_USE_ASM)
+#ifdef LINALG_USE_ASM
     /**
      * @brief Assembly-optimized implementation of dot product for AArch64
      *
@@ -159,6 +159,67 @@ namespace wheel::linalg_boost::detail {
             sum += a[i] * b[i];
         }
         return sum;
+    }
+
+    /**
+     * @brief Assembly-optimized implementation of cosine similarity for AArch64
+     *
+     * @param a Pointer to the first vector
+     * @param b Pointer to the second vector
+     * @param n Size of the vectors
+     * @return Cosine similarity value in range [-1, 1]
+     * @note Returns 0 when either vector is a zero vector
+     */
+    inline float cosine_similarity_asm_aarch64(const float *a, const float *b, size_t n) {
+        size_t blocks = n / 4; // 4 floats per iteration
+        float dot = 0.0f;
+        float aa = 0.0f; // Sum of squares for vector a
+        float bb = 0.0f; // Sum of squares for vector b
+
+        if (blocks) {
+            const float *pa = a;
+            const float *pb = b;
+            asm volatile(
+                "eor v0.16b, v0.16b, v0.16b           \n" // dot_product = 0
+                "eor v3.16b, v3.16b, v3.16b           \n" // aa = 0
+                "eor v4.16b, v4.16b, v4.16b           \n" // bb = 0
+                "1:                                     \n"
+                "ld1 {v1.4s}, [%[pa]], #16             \n" // Load 4 floats from a
+                "ld1 {v2.4s}, [%[pb]], #16             \n" // Load 4 floats from b
+                "fmla v0.4s, v1.4s, v2.4s              \n" // dot += a * b
+                "fmla v3.4s, v1.4s, v1.4s              \n" // aa += a * a
+                "fmla v4.4s, v2.4s, v2.4s              \n" // bb += b * b
+                "subs %[blocks], %[blocks], #1         \n"
+                "b.ne 1b                                \n"
+                // horizontal reduce v0, v3, v4
+                "faddp v0.4s, v0.4s, v0.4s             \n" // Reduce dot product
+                "faddp v0.2s, v0.2s, v0.2s             \n"
+                "fmov %w[dot], s0                       \n"
+
+                "faddp v3.4s, v3.4s, v3.4s             \n" // Reduce aa
+                "faddp v3.2s, v3.2s, v3.2s             \n"
+                "fmov %w[aa], s3                        \n"
+
+                "faddp v4.4s, v4.4s, v4.4s             \n" // Reduce bb
+                "faddp v4.2s, v4.2s, v4.2s             \n"
+                "fmov %w[bb], s4                        \n"
+                : [dot] "=&r"(dot), [aa] "=&r"(aa), [bb] "=&r"(bb), [pa] "+r"(pa), [pb] "+r"(pb), [blocks] "+r"(blocks)
+                :
+                : "v0", "v1", "v2", "v3", "v4", "cc", "memory");
+        }
+
+        // Process remaining elements
+        for (size_t i = (n & ~size_t(3)); i < n; ++i) {
+            const float ai = a[i], bi = b[i];
+            dot += ai * bi;
+            aa += ai * ai;
+            bb += bi * bi;
+        }
+
+        const float denom = std::sqrt(aa) * std::sqrt(bb);
+        if (denom == 0.0f)
+            return 0.0f; // Return 0 when either vector is a zero vector
+        return dot / denom;
     }
 #endif // LINALG_USE_ASM
 #endif // __aarch64__

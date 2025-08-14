@@ -1,8 +1,138 @@
+#include "linalg_boost/linalg_boost.hpp"
 #include "markdown_utils.h"
-#include <string>
-#include <iostream>
+#include <cmath>
+#include <chrono>
 #include <fstream>
-int main() {
+#include <iostream>
+#include <iomanip>
+#include <limits>
+#include <random>
+#include <string>
+#include <vector>
+
+// Helper function to check if two float values are approximately equal
+bool almost_equal(float a, float b, float epsilon = 1e-6f) { return std::abs(a - b) < epsilon; }
+
+// Test function for dot product
+void test_dot_product() {
+    std::cout << "Testing dot product function...\n";
+    bool all_passed = true;
+
+    // Test case 1: Simple vectors
+    {
+        std::vector<float> a = {1.0f, 2.0f, 3.0f, 4.0f};
+        std::vector<float> b = {5.0f, 6.0f, 7.0f, 8.0f};
+        float result = wheel::linalg_boost::dot_product(a.data(), b.data(), a.size());
+        float expected = 1.0f * 5.0f + 2.0f * 6.0f + 3.0f * 7.0f + 4.0f * 8.0f; // 70.0f
+        std::cout << "  Case 1: result = " << result << ", expected = " << expected << "\n";
+        if (!almost_equal(result, expected)) {
+            std::cout << "  FAILED: Test case 1\n";
+            all_passed = false;
+        }
+    }
+
+    // Test case 2: Orthogonal vectors
+    {
+        std::vector<float> a = {1.0f, 0.0f, 0.0f};
+        std::vector<float> b = {0.0f, 1.0f, 0.0f};
+        float result = wheel::linalg_boost::dot_product(a.data(), b.data(), a.size());
+        float expected = 0.0f;
+        std::cout << "  Case 2: result = " << result << ", expected = " << expected << "\n";
+        if (!almost_equal(result, expected)) {
+            std::cout << "  FAILED: Test case 2\n";
+            all_passed = false;
+        }
+    }
+
+    // Test case 3: Longer vectors to test SIMD optimization
+    {
+        std::vector<float> a(16, 1.0f);
+        std::vector<float> b(16, 2.0f);
+        float result = wheel::linalg_boost::dot_product(a.data(), b.data(), a.size());
+        float expected = 32.0f; // 16 elements * 1.0 * 2.0
+        std::cout << "  Case 3: result = " << result << ", expected = " << expected << "\n";
+        if (!almost_equal(result, expected)) {
+            std::cout << "  FAILED: Test case 3\n";
+            all_passed = false;
+        }
+    }
+
+    if (all_passed) {
+        std::cout << "Dot product tests passed!\n\n";
+    } else {
+        std::cout << "Some dot product tests failed!\n\n";
+    }
+}
+
+// Test function for cosine similarity
+void test_cosine_similarity() {
+    std::cout << "Testing cosine similarity function...\n";
+    bool all_passed = true;
+
+    // Test case 1: Identical vectors
+    {
+        std::vector<float> a = {1.0f, 2.0f, 3.0f, 4.0f};
+        std::vector<float> b = {1.0f, 2.0f, 3.0f, 4.0f};
+        float result = wheel::linalg_boost::cosine_similarity(a.data(), b.data(), a.size());
+        float expected = 1.0f;
+        std::cout << "  Case 1: result = " << result << ", expected = " << expected << "\n";
+        if (!almost_equal(result, expected)) {
+            std::cout << "  FAILED: Test case 1\n";
+            all_passed = false;
+        }
+    }
+
+    // Test case 2: Orthogonal vectors
+    {
+        std::vector<float> a = {1.0f, 0.0f, 0.0f};
+        std::vector<float> b = {0.0f, 1.0f, 0.0f};
+        float result = wheel::linalg_boost::cosine_similarity(a.data(), b.data(), a.size());
+        float expected = 0.0f;
+        std::cout << "  Case 2: result = " << result << ", expected = " << expected << "\n";
+        if (!almost_equal(result, expected)) {
+            std::cout << "  FAILED: Test case 2\n";
+            all_passed = false;
+        }
+    }
+
+    // Test case 3: Opposite direction vectors
+    {
+        std::vector<float> a = {1.0f, 2.0f, 3.0f};
+        std::vector<float> b = {-1.0f, -2.0f, -3.0f};
+        float result = wheel::linalg_boost::cosine_similarity(a.data(), b.data(), a.size());
+        float expected = -1.0f;
+        std::cout << "  Case 3: result = " << result << ", expected = " << expected << "\n";
+        if (!almost_equal(result, expected)) {
+            std::cout << "  FAILED: Test case 3\n";
+            all_passed = false;
+        }
+    }
+
+    // Test case 4: Longer vectors to test SIMD optimization
+    {
+        std::vector<float> a(16, 1.0f);
+        std::vector<float> b(16, 2.0f);
+        float result = wheel::linalg_boost::cosine_similarity(a.data(), b.data(), a.size());
+        float expected = 1.0f; // Vectors in same direction
+        std::cout << "  Case 4: result = " << result << ", expected = " << expected << "\n";
+        if (!almost_equal(result, expected)) {
+            std::cout << "  FAILED: Test case 4\n";
+            all_passed = false;
+        }
+    }
+
+    if (all_passed) {
+        std::cout << "Cosine similarity tests passed!\n\n";
+    } else {
+        std::cout << "Some cosine similarity tests failed!\n\n";
+    }
+}
+
+// Test function for markdown parsing and rendering
+void test_markdown_parsing() {
+    std::cout << "Testing markdown parsing and rendering...\n";
+    
+    // Test markdown content
     std::string markdown_text = R"(这个问题需要从**弹道学基础原理**和**创伤弹道学**两个维度来分析。让我一步步拆解：
 
 ### 1. **停止力（Stopping Power）的本质**
@@ -134,15 +264,9 @@ print(f"\nTrue parameters: slope={true_slope}, intercept={true_intercept}")
 print(f"Trained parameters: slope={trained_slope:.4f}, intercept={trained_intercept:.4f}")
 ```)";
 
+    // Parse and display markdown elements
     auto parse = wheel::parse_markdown(markdown_text);
     for (const auto &node : parse) {
-
-        // if (node.render_html_text) {
-        //     std::cout << "Render HTML: " << *node.render_html_text << "\n\n";
-
-        // }
-
-
         if (node.table_text) {
             std::cout << "Table: " << *node.table_text << "\n\n";
             continue;
@@ -150,23 +274,20 @@ print(f"Trained parameters: slope={trained_slope:.4f}, intercept={trained_interc
         if (node.rich_text) {
             std::cout << "Rich Text: " << *node.rich_text << "\n\n";
             continue;
-
         }
         if (node.code_text) {
             std::cout << "Code: " << *node.code_text << "\n\n";
             continue;
-
         }
 
-
         std::cout << "Text: " << node.text << "\n\n";
-
     }
 
+    // Write rendered HTML to file
     std::ofstream out_fs("rendered_markdown.html");
     if (!out_fs.is_open()) {
         std::cerr << "Failed to open file for writing.\n";
-        return 1;
+        return;
     }
     for (const auto &node : parse) {
         if (node.render_html_text) {
@@ -177,4 +298,187 @@ print(f"Trained parameters: slope={trained_slope:.4f}, intercept={trained_interc
     }
 
     std::cout << "Rendered HTML Text has been write to " << "rendered_markdown.html" << "\n";
+}
+
+// Generate random vector data for performance testing
+std::vector<float> generate_random_vector(size_t size, float min_val = -10.0f, float max_val = 10.0f) {
+    std::vector<float> vec(size);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dist(min_val, max_val);
+    
+    for (size_t i = 0; i < size; ++i) {
+        vec[i] = dist(gen);
+    }
+    
+    return vec;
+}
+
+// Performance test for dot product function
+void test_dot_product_performance() {
+    std::cout << "\n---------- Dot Product Performance Test ----------\n";
+    
+    // Test vector sizes
+    const std::vector<size_t> sizes = {1000, 10000, 100000, 1000000};
+    const int num_iterations = 100; // Number of iterations for each test
+    const int num_epochs = 5;       // Number of epochs for averaging
+    
+    for (auto size : sizes) {
+        // Generate random vectors
+        auto vec_a = generate_random_vector(size);
+        auto vec_b = generate_random_vector(size);
+        
+        // Variables to store results to prevent compiler optimization
+        volatile float result_optimized = 0.0f;
+        volatile float result_scalar = 0.0f;
+        
+        double total_duration_optimized = 0.0;
+        double total_duration_scalar = 0.0;
+        double min_duration_optimized = std::numeric_limits<double>::max();
+        double min_duration_scalar = std::numeric_limits<double>::max();
+        double max_duration_optimized = 0.0;
+        double max_duration_scalar = 0.0;
+        
+        // Run multiple epochs for more accurate measurements
+        for (int epoch = 0; epoch < num_epochs; ++epoch) {
+            // Measure optimized implementation
+            auto start_optimized = std::chrono::high_resolution_clock::now();
+            for (int i = 0; i < num_iterations; ++i) {
+                result_optimized = wheel::linalg_boost::dot_product(vec_a.data(), vec_b.data(), size);
+            }
+            auto end_optimized = std::chrono::high_resolution_clock::now();
+            auto duration_optimized = std::chrono::duration_cast<std::chrono::microseconds>(
+                end_optimized - start_optimized).count() / static_cast<double>(num_iterations);
+            
+            total_duration_optimized += duration_optimized;
+            min_duration_optimized = std::min(min_duration_optimized, duration_optimized);
+            max_duration_optimized = std::max(max_duration_optimized, duration_optimized);
+            
+            // Measure scalar implementation
+            auto start_scalar = std::chrono::high_resolution_clock::now();
+            for (int i = 0; i < num_iterations; ++i) {
+                result_scalar = wheel::linalg_boost::detail::dot_product_scalar(vec_a.data(), vec_b.data(), size);
+            }
+            auto end_scalar = std::chrono::high_resolution_clock::now();
+            auto duration_scalar = std::chrono::duration_cast<std::chrono::microseconds>(
+                end_scalar - start_scalar).count() / static_cast<double>(num_iterations);
+            
+            total_duration_scalar += duration_scalar;
+            min_duration_scalar = std::min(min_duration_scalar, duration_scalar);
+            max_duration_scalar = std::max(max_duration_scalar, duration_scalar);
+            
+            // Print progress
+            std::cout << "  Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
+        }
+        
+        // Calculate average durations
+        double avg_duration_optimized = total_duration_optimized / num_epochs;
+        double avg_duration_scalar = total_duration_scalar / num_epochs;
+        
+        // Calculate speedup
+        double speedup = avg_duration_scalar / avg_duration_optimized;
+        
+        // Print results
+        std::cout << "\nVector size: " << size << "\n";
+        std::cout << "  Optimized implementation: " << std::fixed << std::setprecision(2) 
+                  << "min = " << min_duration_optimized << " µs, "
+                  << "max = " << max_duration_optimized << " µs, "
+                  << "avg = " << avg_duration_optimized << " µs\n";
+        std::cout << "  Scalar implementation: " << std::fixed << std::setprecision(2) 
+                  << "min = " << min_duration_scalar << " µs, "
+                  << "max = " << max_duration_scalar << " µs, "
+                  << "avg = " << avg_duration_scalar << " µs\n";
+        std::cout << "  Speedup: " << std::fixed << std::setprecision(2) << speedup << "x\n\n";
+    }
+}
+
+// Performance test for cosine similarity function
+void test_cosine_similarity_performance() {
+    std::cout << "\n---------- Cosine Similarity Performance Test ----------\n";
+    
+    // Test vector sizes
+    const std::vector<size_t> sizes = {1000, 10000, 100000, 1000000};
+    const int num_iterations = 100; // Number of iterations for each test
+    const int num_epochs = 5;       // Number of epochs for averaging
+    
+    for (auto size : sizes) {
+        // Generate random vectors
+        auto vec_a = generate_random_vector(size);
+        auto vec_b = generate_random_vector(size);
+        
+        // Variables to store results to prevent compiler optimization
+        volatile float result_optimized = 0.0f;
+        volatile float result_scalar = 0.0f;
+        
+        double total_duration_optimized = 0.0;
+        double total_duration_scalar = 0.0;
+        double min_duration_optimized = std::numeric_limits<double>::max();
+        double min_duration_scalar = std::numeric_limits<double>::max();
+        double max_duration_optimized = 0.0;
+        double max_duration_scalar = 0.0;
+        
+        // Run multiple epochs for more accurate measurements
+        for (int epoch = 0; epoch < num_epochs; ++epoch) {
+            // Measure optimized implementation
+            auto start_optimized = std::chrono::high_resolution_clock::now();
+            for (int i = 0; i < num_iterations; ++i) {
+                result_optimized = wheel::linalg_boost::cosine_similarity(vec_a.data(), vec_b.data(), size);
+            }
+            auto end_optimized = std::chrono::high_resolution_clock::now();
+            auto duration_optimized = std::chrono::duration_cast<std::chrono::microseconds>(
+                end_optimized - start_optimized).count() / static_cast<double>(num_iterations);
+            
+            total_duration_optimized += duration_optimized;
+            min_duration_optimized = std::min(min_duration_optimized, duration_optimized);
+            max_duration_optimized = std::max(max_duration_optimized, duration_optimized);
+            
+            // Measure scalar implementation
+            auto start_scalar = std::chrono::high_resolution_clock::now();
+            for (int i = 0; i < num_iterations; ++i) {
+                result_scalar = wheel::linalg_boost::detail::cosine_similarity_scalar(vec_a.data(), vec_b.data(), size);
+            }
+            auto end_scalar = std::chrono::high_resolution_clock::now();
+            auto duration_scalar = std::chrono::duration_cast<std::chrono::microseconds>(
+                end_scalar - start_scalar).count() / static_cast<double>(num_iterations);
+            
+            total_duration_scalar += duration_scalar;
+            min_duration_scalar = std::min(min_duration_scalar, duration_scalar);
+            max_duration_scalar = std::max(max_duration_scalar, duration_scalar);
+            
+            // Print progress
+            std::cout << "  Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
+        }
+        
+        // Calculate average durations
+        double avg_duration_optimized = total_duration_optimized / num_epochs;
+        double avg_duration_scalar = total_duration_scalar / num_epochs;
+        
+        // Calculate speedup
+        double speedup = avg_duration_scalar / avg_duration_optimized;
+        
+        // Print results
+        std::cout << "\nVector size: " << size << "\n";
+        std::cout << "  Optimized implementation: " << std::fixed << std::setprecision(2) 
+                  << "min = " << min_duration_optimized << " µs, "
+                  << "max = " << max_duration_optimized << " µs, "
+                  << "avg = " << avg_duration_optimized << " µs\n";
+        std::cout << "  Scalar implementation: " << std::fixed << std::setprecision(2) 
+                  << "min = " << min_duration_scalar << " µs, "
+                  << "max = " << max_duration_scalar << " µs, "
+                  << "avg = " << avg_duration_scalar << " µs\n";
+        std::cout << "  Speedup: " << std::fixed << std::setprecision(2) << speedup << "x\n\n";
+    }
+}
+
+int main() {
+    // Run all tests
+    test_dot_product();
+    test_cosine_similarity();
+    test_markdown_parsing();
+    
+    // Run performance tests
+    test_dot_product_performance();
+    test_cosine_similarity_performance();
+    
+    return 0;
 }

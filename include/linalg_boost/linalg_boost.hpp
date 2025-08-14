@@ -19,8 +19,8 @@ namespace wheel::linalg_boost {
         if (size == 0)
             throw std::invalid_argument("dot_product: size must > 0");
 
-#if defined(__aarch64__)
-#if defined(LINALG_USE_ASM)
+#ifdef __aarch64__
+#ifdef LINALG_USE_ASM
         return detail::dot_product_asm_aarch64(a, b, size);
 #else
         return detail::dot_product_neon(a, b, size);
@@ -44,8 +44,12 @@ namespace wheel::linalg_boost {
     inline float cosine_similarity(const float *a, const float *b, size_t size) {
         if (size == 0)
             throw std::invalid_argument("cosine_similarity: size must > 0");
-#if defined(__aarch64__)
+#ifdef __aarch64__
+#ifdef LINALG_USE_ASM
+        return detail::cosine_similarity_asm_aarch64(a, b, size);
+#else
         return detail::cosine_similarity_neon(a, b, size);
+#endif
 #else
         return detail::cosine_similarity_scalar(a, b, size);
 #endif
