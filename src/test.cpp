@@ -470,15 +470,238 @@ void test_cosine_similarity_performance() {
     }
 }
 
+// Test function for batch cosine similarity
+void test_batch_cosine_similarity() {
+    std::cout << "Testing batch cosine similarity function...\n";
+    bool all_passed = true;
+
+    // Test case 1: Batch of identical vectors
+    {
+        const size_t vector_size = 4;
+        const size_t batch_size = 3;
+        
+        // Create reference vector
+        std::vector<float> b = {1.0f, 2.0f, 3.0f, 4.0f};
+        
+        // Create batch of vectors
+        std::vector<std::vector<float>> batch_vectors = {
+            {1.0f, 2.0f, 3.0f, 4.0f},  // Identical to reference (cosine = 1.0)
+            {2.0f, 4.0f, 6.0f, 8.0f},  // Scaled version of reference (cosine = 1.0)
+            {4.0f, 3.0f, 2.0f, 1.0f}   // Different vector
+        };
+        
+        // Create array of pointers for batch API
+        std::vector<const float*> a_ptrs(batch_size);
+        for (size_t i = 0; i < batch_size; ++i) {
+            a_ptrs[i] = batch_vectors[i].data();
+        }
+        
+        // Results array
+        std::vector<float> results(batch_size, 0.0f);
+        
+        // Call batch function
+        wheel::linalg_boost::batch_cosine_similarity(a_ptrs.data(), b.data(), vector_size, batch_size, results.data());
+        
+        // Expected results
+        std::vector<float> expected = {
+            1.0f,  // Identical vector
+            1.0f,  // Scaled vector (same direction)
+            0.6667f  // Approximately 0.6667 for the given vectors
+        };
+        
+        // Check results
+        for (size_t i = 0; i < batch_size; ++i) {
+            std::cout << "  Case 1, vector " << i << ": result = " << results[i] 
+                      << ", expected " << (i < 2 ? "exactly " : "approximately ") << expected[i] << "\n";
+            
+            if (i < 2 && !almost_equal(results[i], expected[i])) {
+                std::cout << "  FAILED: Test case 1, vector " << i << "\n";
+                all_passed = false;
+            } else if (i == 2 && std::abs(results[i] - expected[i]) > 0.01f) {
+                std::cout << "  FAILED: Test case 1, vector " << i << "\n";
+                all_passed = false;
+            }
+        }
+    }
+    
+    // Test case 2: Zero vector handling
+    {
+        const size_t vector_size = 3;
+        const size_t batch_size = 2;
+        
+        // Reference vector is zero
+        std::vector<float> zero_ref = {0.0f, 0.0f, 0.0f};
+        
+        // Batch vectors
+        std::vector<std::vector<float>> batch_vectors = {
+            {1.0f, 2.0f, 3.0f},  // Normal vector
+            {0.0f, 0.0f, 0.0f}   // Zero vector
+        };
+        
+        // Create array of pointers
+        std::vector<const float*> a_ptrs(batch_size);
+        for (size_t i = 0; i < batch_size; ++i) {
+            a_ptrs[i] = batch_vectors[i].data();
+        }
+        
+        // Results array
+        std::vector<float> results(batch_size, -99.0f);  // Initialize with invalid value
+        
+        // Call batch function with zero reference vector
+        wheel::linalg_boost::batch_cosine_similarity(a_ptrs.data(), zero_ref.data(), vector_size, batch_size, results.data());
+        
+        // All results should be 0.0 when reference vector is zero
+        for (size_t i = 0; i < batch_size; ++i) {
+            std::cout << "  Case 2a, vector " << i << ": result = " << results[i] << ", expected = 0.0\n";
+            if (!almost_equal(results[i], 0.0f)) {
+                std::cout << "  FAILED: Test case 2a, vector " << i << "\n";
+                all_passed = false;
+            }
+        }
+        
+        // Now test with normal reference vector but zero in batch
+        std::vector<float> normal_ref = {1.0f, 2.0f, 3.0f};
+        
+        // Reset results
+        std::fill(results.begin(), results.end(), -99.0f);
+        
+        // Call batch function
+        wheel::linalg_boost::batch_cosine_similarity(a_ptrs.data(), normal_ref.data(), vector_size, batch_size, results.data());
+        
+        // Expected: first should be 1.0 (same vector), second should be 0.0 (zero vector)
+        std::vector<float> expected = {1.0f, 0.0f};
+        
+        for (size_t i = 0; i < batch_size; ++i) {
+            std::cout << "  Case 2b, vector " << i << ": result = " << results[i] << ", expected = " << expected[i] << "\n";
+            if (!almost_equal(results[i], expected[i])) {
+                std::cout << "  FAILED: Test case 2b, vector " << i << "\n";
+                all_passed = false;
+            }
+        }
+    }
+    
+    if (all_passed) {
+        std::cout << "Batch cosine similarity tests passed!\n\n";
+    } else {
+        std::cout << "Some batch cosine similarity tests failed!\n\n";
+    }
+}
+
+// Performance test for batch cosine similarity function
+void test_batch_cosine_similarity_performance() {
+    std::cout << "\n---------- Batch Cosine Similarity Performance Test ----------\n";
+    
+    // Test vector sizes
+    const std::vector<size_t> sizes = {1000, 10000, 100000};
+    const std::vector<size_t> batch_sizes = {10, 50, 100};
+    const int num_iterations = 20; // Number of iterations for each test
+    const int num_epochs = 5;      // Number of epochs for averaging
+    
+    for (auto size : sizes) {
+        for (auto batch_size : batch_sizes) {
+            std::cout << "\nVector size: " << size << ", Batch size: " << batch_size << "\n";
+            
+            // Generate reference vector
+            auto ref_vec = generate_random_vector(size);
+            
+            // Generate batch of random vectors
+            std::vector<std::vector<float>> batch_vectors;
+            std::vector<const float*> batch_ptrs(batch_size);
+            
+            for (size_t i = 0; i < batch_size; ++i) {
+                batch_vectors.push_back(generate_random_vector(size));
+                batch_ptrs[i] = batch_vectors[i].data();
+            }
+            
+            std::vector<float> batch_results(batch_size);
+            std::vector<float> single_results(batch_size);
+            
+            // Variables for timing
+            double total_duration_batch = 0.0;
+            double total_duration_single = 0.0;
+            double min_duration_batch = std::numeric_limits<double>::max();
+            double min_duration_single = std::numeric_limits<double>::max();
+            double max_duration_batch = 0.0;
+            double max_duration_single = 0.0;
+            
+            // Run multiple epochs for more accurate measurements
+            for (int epoch = 0; epoch < num_epochs; ++epoch) {
+                // Measure batch implementation
+                auto start_batch = std::chrono::high_resolution_clock::now();
+                for (int i = 0; i < num_iterations; ++i) {
+                    wheel::linalg_boost::batch_cosine_similarity(
+                        batch_ptrs.data(), ref_vec.data(), size, batch_size, batch_results.data());
+                }
+                auto end_batch = std::chrono::high_resolution_clock::now();
+                auto duration_batch = std::chrono::duration_cast<std::chrono::microseconds>(
+                    end_batch - start_batch).count() / static_cast<double>(num_iterations);
+                
+                total_duration_batch += duration_batch;
+                min_duration_batch = std::min(min_duration_batch, duration_batch);
+                max_duration_batch = std::max(max_duration_batch, duration_batch);
+                
+                // Measure multiple single calls implementation
+                auto start_single = std::chrono::high_resolution_clock::now();
+                for (int i = 0; i < num_iterations; ++i) {
+                    for (size_t j = 0; j < batch_size; ++j) {
+                        single_results[j] = wheel::linalg_boost::cosine_similarity(
+                            batch_vectors[j].data(), ref_vec.data(), size);
+                    }
+                }
+                auto end_single = std::chrono::high_resolution_clock::now();
+                auto duration_single = std::chrono::duration_cast<std::chrono::microseconds>(
+                    end_single - start_single).count() / static_cast<double>(num_iterations);
+                
+                total_duration_single += duration_single;
+                min_duration_single = std::min(min_duration_single, duration_single);
+                max_duration_single = std::max(max_duration_single, duration_single);
+                
+                // Print progress
+                std::cout << "  Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
+            }
+            
+            // Calculate average durations
+            double avg_duration_batch = total_duration_batch / num_epochs;
+            double avg_duration_single = total_duration_single / num_epochs;
+            
+            // Calculate speedup
+            double speedup = avg_duration_single / avg_duration_batch;
+            
+            // Print results
+            std::cout << "\n  Batch implementation: " << std::fixed << std::setprecision(2) 
+                      << "min = " << min_duration_batch << " µs, "
+                      << "max = " << max_duration_batch << " µs, "
+                      << "avg = " << avg_duration_batch << " µs\n";
+            std::cout << "  Multiple single calls: " << std::fixed << std::setprecision(2) 
+                      << "min = " << min_duration_single << " µs, "
+                      << "max = " << max_duration_single << " µs, "
+                      << "avg = " << avg_duration_single << " µs\n";
+            std::cout << "  Speedup: " << std::fixed << std::setprecision(2) << speedup << "x\n";
+            
+            // Verify results match between batch and single calls
+            bool results_match = true;
+            for (size_t i = 0; i < batch_size; ++i) {
+                if (!almost_equal(batch_results[i], single_results[i])) {
+                    results_match = false;
+                    break;
+                }
+            }
+            std::cout << "  Results match: " << (results_match ? "Yes" : "No") << "\n";
+        }
+    }
+}
+
 int main() {
     // Run all tests
     test_dot_product();
     test_cosine_similarity();
+    test_batch_cosine_similarity();
     test_markdown_parsing();
     
     // Run performance tests
     test_dot_product_performance();
     test_cosine_similarity_performance();
+    test_batch_cosine_similarity_performance();
     
     return 0;
 }
