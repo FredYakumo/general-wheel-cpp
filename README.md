@@ -1,27 +1,23 @@
 # General Wheel C++
 
-A modern C++ utility library providing thread-safe collections and other general-purpose components.
+A friendly modern C++ toolkit that makes your life easier with thread-safe collections and useful utilities. 很方便！
 
 ## Features
 
-- Thread-safe collections:
-  - Concurrent unordered map
-  - Concurrent vector
-  - Concurrent hashset
+- **Thread-safe Collections**:
+  - `concurrent_unordered_map`: Like a regular map but worry-free in multi-threaded code
+  - `concurrent_vector`: A vector you can safely use across threads
+  - `concurrent_hashset`: A set that handles concurrent access gracefully
 
-- String utilities:
-  - UTF-8 string manipulation
-  - String trimming (ltrim, rtrim)
-  - String replacement with UTF-8 support
-  - String joining with custom delimiters
-  - String splitting with iterators
-  - Text removal between markers
-  - UTF-8 string splitting by character count
+- **String Utils**:
+  - String cleaning (trim spaces, remove unwanted parts)
+  - UTF-8 text handling that works Chinese, Japanese, etc. (支持中文!)
+  - Split strings
+  - Join strings with sep char
 
-- Thread safety utilities:
-  - Mutex-protected data wrapper
-  - RAII-style mutex locking
-  - Thread-safe data access patterns
+- **Thread Safety Too`MutexData`: Wrap your data to make it thread-safe automatically
+  - Safe locking patterns that prevent deadlocks
+  - Controlled access to shared data without race conditions
 
 ## Requirements
 
@@ -29,6 +25,7 @@ A modern C++ utility library providing thread-safe collections and other general
 - CMake 3.14 or later
 
 # How to use
+
 ## Building
 
 ```bash
@@ -52,14 +49,14 @@ This will install:
 
 ## Usage
 
-After installation, you can use this library in your CMake project:
+Add to your CMake project:
 
 ```cmake
 find_package(general-wheel-cpp REQUIRED)
 target_link_libraries(your_target general-wheel-cpp::general-wheel-cpp)
 ```
 
-Example usage:
+### Code Examples:
 
 ```cpp
 using namespace wheel;
@@ -69,12 +66,12 @@ using namespace wheel;
 #include <string_utils.hpp>
 #include <mutex_data.hpp>
 
-// Thread-safe collections
 concurrent_unordered_map<int, std::string> map;
-map.insert({1, "one"});
+map.insert({1, "one"});  // Thread-safe insertion
+auto value = map.at(1);  // Thread-safe lookup
 
 concurrent_vector<int> vec;
-vec.push_back(42);
+vec.push_back(42);  // Multiple threads can push_back safely
 
 // String utilities
 
@@ -82,7 +79,7 @@ vec.push_back(42);
 std::string_view text = "  1145141919  ";
 auto trimmed = ltrim(rtrim(text));  // "1145141919"
 
-// String replacement with UTF-8 support
+// 替换文本 (Replace text)
 std::string str = "你要玩原神还是玩c加加";
 auto replaced = replace_str(str, "c加加", "rust");  // "你要玩原神还是玩rust"
 
@@ -114,7 +111,7 @@ protected_data.modify([](UserData& data) {
 
 // Read data safely
 auto name = protected_data.read([](const UserData& data) {
-    return data.name;
+    return data.name;  // Returns "丁真"
 });
 ```
 
