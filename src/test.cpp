@@ -1,10 +1,11 @@
 #include "linalg_boost/linalg_boost.hpp"
 #include "markdown_utils.h"
-#include <cmath>
+#include "time_utils.hpp"
 #include <chrono>
+#include <cmath>
 #include <fstream>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <limits>
 #include <random>
 #include <string>
@@ -20,11 +21,18 @@ void test_dot_product() {
 
     // Test case 1: Simple vectors
     {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
         std::vector<float> a = {1.0f, 2.0f, 3.0f, 4.0f};
         std::vector<float> b = {5.0f, 6.0f, 7.0f, 8.0f};
         float result = wheel::linalg_boost::dot_product(a.data(), b.data(), a.size());
         float expected = 1.0f * 5.0f + 2.0f * 6.0f + 3.0f * 7.0f + 4.0f * 8.0f; // 70.0f
-        std::cout << "  Case 1: result = " << result << ", expected = " << expected << "\n";
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
+        std::cout << "  Case 1: result = " << result << ", expected = " << expected
+                  << " (time cost: " << duration.count() << " μs)\n";
         if (!almost_equal(result, expected)) {
             std::cout << "  FAILED: Test case 1\n";
             all_passed = false;
@@ -33,11 +41,18 @@ void test_dot_product() {
 
     // Test case 2: Orthogonal vectors
     {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
         std::vector<float> a = {1.0f, 0.0f, 0.0f};
         std::vector<float> b = {0.0f, 1.0f, 0.0f};
         float result = wheel::linalg_boost::dot_product(a.data(), b.data(), a.size());
         float expected = 0.0f;
-        std::cout << "  Case 2: result = " << result << ", expected = " << expected << "\n";
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
+        std::cout << "  Case 2: result = " << result << ", expected = " << expected
+                  << " (time cost: " << duration.count() << " μs)\n";
         if (!almost_equal(result, expected)) {
             std::cout << "  FAILED: Test case 2\n";
             all_passed = false;
@@ -46,11 +61,18 @@ void test_dot_product() {
 
     // Test case 3: Longer vectors to test SIMD optimization
     {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
         std::vector<float> a(16, 1.0f);
         std::vector<float> b(16, 2.0f);
         float result = wheel::linalg_boost::dot_product(a.data(), b.data(), a.size());
         float expected = 32.0f; // 16 elements * 1.0 * 2.0
-        std::cout << "  Case 3: result = " << result << ", expected = " << expected << "\n";
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
+        std::cout << "  Case 3: result = " << result << ", expected = " << expected
+                  << " (time cost: " << duration.count() << " μs)\n";
         if (!almost_equal(result, expected)) {
             std::cout << "  FAILED: Test case 3\n";
             all_passed = false;
@@ -71,11 +93,18 @@ void test_cosine_similarity() {
 
     // Test case 1: Identical vectors
     {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
         std::vector<float> a = {1.0f, 2.0f, 3.0f, 4.0f};
         std::vector<float> b = {1.0f, 2.0f, 3.0f, 4.0f};
         float result = wheel::linalg_boost::cosine_similarity(a.data(), b.data(), a.size());
         float expected = 1.0f;
-        std::cout << "  Case 1: result = " << result << ", expected = " << expected << "\n";
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
+        std::cout << "  Case 1: result = " << result << ", expected = " << expected
+                  << " (time cost: " << duration.count() << " μs)\n";
         if (!almost_equal(result, expected)) {
             std::cout << "  FAILED: Test case 1\n";
             all_passed = false;
@@ -84,11 +113,18 @@ void test_cosine_similarity() {
 
     // Test case 2: Orthogonal vectors
     {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
         std::vector<float> a = {1.0f, 0.0f, 0.0f};
         std::vector<float> b = {0.0f, 1.0f, 0.0f};
         float result = wheel::linalg_boost::cosine_similarity(a.data(), b.data(), a.size());
         float expected = 0.0f;
-        std::cout << "  Case 2: result = " << result << ", expected = " << expected << "\n";
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
+        std::cout << "  Case 2: result = " << result << ", expected = " << expected
+                  << " (time cost: " << duration.count() << " μs)\n";
         if (!almost_equal(result, expected)) {
             std::cout << "  FAILED: Test case 2\n";
             all_passed = false;
@@ -97,11 +133,18 @@ void test_cosine_similarity() {
 
     // Test case 3: Opposite direction vectors
     {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
         std::vector<float> a = {1.0f, 2.0f, 3.0f};
         std::vector<float> b = {-1.0f, -2.0f, -3.0f};
         float result = wheel::linalg_boost::cosine_similarity(a.data(), b.data(), a.size());
         float expected = -1.0f;
-        std::cout << "  Case 3: result = " << result << ", expected = " << expected << "\n";
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
+        std::cout << "  Case 3: result = " << result << ", expected = " << expected
+                  << " (time cost: " << duration.count() << " μs)\n";
         if (!almost_equal(result, expected)) {
             std::cout << "  FAILED: Test case 3\n";
             all_passed = false;
@@ -110,11 +153,18 @@ void test_cosine_similarity() {
 
     // Test case 4: Longer vectors to test SIMD optimization
     {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
         std::vector<float> a(16, 1.0f);
         std::vector<float> b(16, 2.0f);
         float result = wheel::linalg_boost::cosine_similarity(a.data(), b.data(), a.size());
         float expected = 1.0f; // Vectors in same direction
-        std::cout << "  Case 4: result = " << result << ", expected = " << expected << "\n";
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
+        std::cout << "  Case 4: result = " << result << ", expected = " << expected
+                  << " (time cost: " << duration.count() << " μs)\n";
         if (!almost_equal(result, expected)) {
             std::cout << "  FAILED: Test case 4\n";
             all_passed = false;
@@ -131,7 +181,9 @@ void test_cosine_similarity() {
 // Test function for markdown parsing and rendering
 void test_markdown_parsing() {
     std::cout << "Testing markdown parsing and rendering...\n";
-    
+
+    auto start_time = std::chrono::high_resolution_clock::now();
+
     // Test markdown content
     std::string markdown_text = R"(这个问题需要从**弹道学基础原理**和**创伤弹道学**两个维度来分析。让我一步步拆解：
 
@@ -266,22 +318,22 @@ print(f"Trained parameters: slope={trained_slope:.4f}, intercept={trained_interc
 
     // Parse and display markdown elements
     auto parse = wheel::parse_markdown(markdown_text);
-    for (const auto &node : parse) {
-        if (node.table_text) {
-            std::cout << "Table: " << *node.table_text << "\n\n";
-            continue;
-        }
-        if (node.rich_text) {
-            std::cout << "Rich Text: " << *node.rich_text << "\n\n";
-            continue;
-        }
-        if (node.code_text) {
-            std::cout << "Code: " << *node.code_text << "\n\n";
-            continue;
-        }
+    // for (const auto &node : parse) {
+    //     if (node.table_text) {
+    //         std::cout << "Table: " << *node.table_text << "\n\n";
+    //         continue;
+    //     }
+    //     if (node.rich_text) {
+    //         std::cout << "Rich Text: " << *node.rich_text << "\n\n";
+    //         continue;
+    //     }
+    //     if (node.code_text) {
+    //         std::cout << "Code: " << *node.code_text << "\n\n";
+    //         continue;
+    //     }
 
-        std::cout << "Text: " << node.text << "\n\n";
-    }
+    //     std::cout << "Text: " << node.text << "\n\n";
+    // }
 
     // Write rendered HTML to file
     std::ofstream out_fs("rendered_markdown.html");
@@ -297,7 +349,11 @@ print(f"Trained parameters: slope={trained_slope:.4f}, intercept={trained_interc
         }
     }
 
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
     std::cout << "Rendered HTML Text has been write to " << "rendered_markdown.html" << "\n";
+    std::cout << "Total markdown parsing and rendering time: " << duration.count() << " μs\n";
 }
 
 // Generate random vector data for performance testing
@@ -306,85 +362,96 @@ std::vector<float> generate_random_vector(size_t size, float min_val = -10.0f, f
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dist(min_val, max_val);
-    
+
     for (size_t i = 0; i < size; ++i) {
         vec[i] = dist(gen);
     }
-    
+
     return vec;
 }
 
 // Performance test for dot product function
 void test_dot_product_performance() {
     std::cout << "\n---------- Dot Product Performance Test ----------\n";
-    
+
     // Test vector sizes
     const std::vector<size_t> sizes = {1000, 10000, 100000, 1000000};
     const int num_iterations = 100; // Number of iterations for each test
     const int num_epochs = 5;       // Number of epochs for averaging
-    
+
     for (auto size : sizes) {
         // Generate random vectors
         auto vec_a = generate_random_vector(size);
         auto vec_b = generate_random_vector(size);
-        
+
         // Variables to store results to prevent compiler optimization
         volatile float result_optimized = 0.0f;
         volatile float result_scalar = 0.0f;
-        
+
         double total_duration_optimized = 0.0;
         double total_duration_scalar = 0.0;
         double min_duration_optimized = std::numeric_limits<double>::max();
         double min_duration_scalar = std::numeric_limits<double>::max();
         double max_duration_optimized = 0.0;
         double max_duration_scalar = 0.0;
-        
-        // Run multiple epochs for more accurate measurements
-        for (int epoch = 0; epoch < num_epochs; ++epoch) {
-            // Measure optimized implementation
-            auto start_optimized = std::chrono::high_resolution_clock::now();
-            for (int i = 0; i < num_iterations; ++i) {
-                result_optimized = wheel::linalg_boost::dot_product(vec_a.data(), vec_b.data(), size);
+
+
+        // Optimized version: multi-epoch timing
+        auto total_epoch_ns_optimized = wheel::measure_duration([&] {
+            for (int epoch = 0; epoch < num_epochs; ++epoch) {
+                auto start_optimized = std::chrono::high_resolution_clock::now();
+                for (int i = 0; i < num_iterations; ++i) {
+                    result_optimized = wheel::linalg_boost::dot_product(vec_a.data(), vec_b.data(), size);
+                }
+                auto end_optimized = std::chrono::high_resolution_clock::now();
+                auto duration_optimized =
+                    std::chrono::duration_cast<std::chrono::microseconds>(end_optimized - start_optimized).count() /
+                    static_cast<double>(num_iterations);
+
+                total_duration_optimized += duration_optimized;
+                min_duration_optimized = std::min(min_duration_optimized, duration_optimized);
+                max_duration_optimized = std::max(max_duration_optimized, duration_optimized);
+                std::cout << "  Optimized Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
             }
-            auto end_optimized = std::chrono::high_resolution_clock::now();
-            auto duration_optimized = std::chrono::duration_cast<std::chrono::microseconds>(
-                end_optimized - start_optimized).count() / static_cast<double>(num_iterations);
-            
-            total_duration_optimized += duration_optimized;
-            min_duration_optimized = std::min(min_duration_optimized, duration_optimized);
-            max_duration_optimized = std::max(max_duration_optimized, duration_optimized);
-            
-            // Measure scalar implementation
-            auto start_scalar = std::chrono::high_resolution_clock::now();
-            for (int i = 0; i < num_iterations; ++i) {
-                result_scalar = wheel::linalg_boost::detail::dot_product_scalar(vec_a.data(), vec_b.data(), size);
+        });
+        std::cout << "  Optimized total " << num_epochs << " epochs time: "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(total_epoch_ns_optimized).count() << " ms\n";
+
+        // Scalar version: multi-epoch timing
+        auto total_epoch_ns_scalar = wheel::measure_duration([&] {
+            for (int epoch = 0; epoch < num_epochs; ++epoch) {
+                auto start_scalar = std::chrono::high_resolution_clock::now();
+                for (int i = 0; i < num_iterations; ++i) {
+                    result_scalar = wheel::linalg_boost::detail::dot_product_scalar(vec_a.data(), vec_b.data(), size);
+                }
+                auto end_scalar = std::chrono::high_resolution_clock::now();
+                auto duration_scalar =
+                    std::chrono::duration_cast<std::chrono::microseconds>(end_scalar - start_scalar).count() /
+                    static_cast<double>(num_iterations);
+
+                total_duration_scalar += duration_scalar;
+                min_duration_scalar = std::min(min_duration_scalar, duration_scalar);
+                max_duration_scalar = std::max(max_duration_scalar, duration_scalar);
+                std::cout << "  Scalar Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
             }
-            auto end_scalar = std::chrono::high_resolution_clock::now();
-            auto duration_scalar = std::chrono::duration_cast<std::chrono::microseconds>(
-                end_scalar - start_scalar).count() / static_cast<double>(num_iterations);
-            
-            total_duration_scalar += duration_scalar;
-            min_duration_scalar = std::min(min_duration_scalar, duration_scalar);
-            max_duration_scalar = std::max(max_duration_scalar, duration_scalar);
-            
-            // Print progress
-            std::cout << "  Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
-        }
-        
+        });
+        std::cout << "  Scalar total " << num_epochs << " epochs time: "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(total_epoch_ns_scalar).count() << " ms\n";
+
         // Calculate average durations
         double avg_duration_optimized = total_duration_optimized / num_epochs;
         double avg_duration_scalar = total_duration_scalar / num_epochs;
-        
+
         // Calculate speedup
         double speedup = avg_duration_scalar / avg_duration_optimized;
-        
+
         // Print results
         std::cout << "\nVector size: " << size << "\n";
-        std::cout << "  Optimized implementation: " << std::fixed << std::setprecision(2) 
+        std::cout << "  Optimized implementation: " << std::fixed << std::setprecision(2)
                   << "min = " << min_duration_optimized << " µs, "
                   << "max = " << max_duration_optimized << " µs, "
                   << "avg = " << avg_duration_optimized << " µs\n";
-        std::cout << "  Scalar implementation: " << std::fixed << std::setprecision(2) 
+        std::cout << "  Scalar implementation: " << std::fixed << std::setprecision(2)
                   << "min = " << min_duration_scalar << " µs, "
                   << "max = " << max_duration_scalar << " µs, "
                   << "avg = " << avg_duration_scalar << " µs\n";
@@ -395,74 +462,85 @@ void test_dot_product_performance() {
 // Performance test for cosine similarity function
 void test_cosine_similarity_performance() {
     std::cout << "\n---------- Cosine Similarity Performance Test ----------\n";
-    
+
     // Test vector sizes
     const std::vector<size_t> sizes = {1000, 10000, 100000, 1000000};
     const int num_iterations = 100; // Number of iterations for each test
     const int num_epochs = 5;       // Number of epochs for averaging
-    
+
     for (auto size : sizes) {
         // Generate random vectors
         auto vec_a = generate_random_vector(size);
         auto vec_b = generate_random_vector(size);
-        
+
         // Variables to store results to prevent compiler optimization
         volatile float result_optimized = 0.0f;
         volatile float result_scalar = 0.0f;
-        
+
         double total_duration_optimized = 0.0;
         double total_duration_scalar = 0.0;
         double min_duration_optimized = std::numeric_limits<double>::max();
         double min_duration_scalar = std::numeric_limits<double>::max();
         double max_duration_optimized = 0.0;
         double max_duration_scalar = 0.0;
-        
-        // Run multiple epochs for more accurate measurements
-        for (int epoch = 0; epoch < num_epochs; ++epoch) {
-            // Measure optimized implementation
-            auto start_optimized = std::chrono::high_resolution_clock::now();
-            for (int i = 0; i < num_iterations; ++i) {
-                result_optimized = wheel::linalg_boost::cosine_similarity(vec_a.data(), vec_b.data(), size);
+
+
+        // Optimized version: multi-epoch timing
+        auto total_epoch_ns_optimized = wheel::measure_duration([&] {
+            for (int epoch = 0; epoch < num_epochs; ++epoch) {
+                auto start_optimized = std::chrono::high_resolution_clock::now();
+                for (int i = 0; i < num_iterations; ++i) {
+                    result_optimized = wheel::linalg_boost::cosine_similarity(vec_a.data(), vec_b.data(), size);
+                }
+                auto end_optimized = std::chrono::high_resolution_clock::now();
+                auto duration_optimized =
+                    std::chrono::duration_cast<std::chrono::microseconds>(end_optimized - start_optimized).count() /
+                    static_cast<double>(num_iterations);
+
+                total_duration_optimized += duration_optimized;
+                min_duration_optimized = std::min(min_duration_optimized, duration_optimized);
+                max_duration_optimized = std::max(max_duration_optimized, duration_optimized);
+                std::cout << "  Optimized Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
             }
-            auto end_optimized = std::chrono::high_resolution_clock::now();
-            auto duration_optimized = std::chrono::duration_cast<std::chrono::microseconds>(
-                end_optimized - start_optimized).count() / static_cast<double>(num_iterations);
-            
-            total_duration_optimized += duration_optimized;
-            min_duration_optimized = std::min(min_duration_optimized, duration_optimized);
-            max_duration_optimized = std::max(max_duration_optimized, duration_optimized);
-            
-            // Measure scalar implementation
-            auto start_scalar = std::chrono::high_resolution_clock::now();
-            for (int i = 0; i < num_iterations; ++i) {
-                result_scalar = wheel::linalg_boost::detail::cosine_similarity_scalar(vec_a.data(), vec_b.data(), size);
+        });
+        std::cout << "  Optimized total " << num_epochs << " epochs time: "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(total_epoch_ns_optimized).count() << " ms\n";
+
+        // Scalar version: multi-epoch timing
+        auto total_epoch_ns_scalar = wheel::measure_duration([&] {
+            for (int epoch = 0; epoch < num_epochs; ++epoch) {
+                auto start_scalar = std::chrono::high_resolution_clock::now();
+                for (int i = 0; i < num_iterations; ++i) {
+                    result_scalar = wheel::linalg_boost::detail::cosine_similarity_scalar(vec_a.data(), vec_b.data(), size);
+                }
+                auto end_scalar = std::chrono::high_resolution_clock::now();
+                auto duration_scalar =
+                    std::chrono::duration_cast<std::chrono::microseconds>(end_scalar - start_scalar).count() /
+                    static_cast<double>(num_iterations);
+
+                total_duration_scalar += duration_scalar;
+                min_duration_scalar = std::min(min_duration_scalar, duration_scalar);
+                max_duration_scalar = std::max(max_duration_scalar, duration_scalar);
+                std::cout << "  Scalar Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
             }
-            auto end_scalar = std::chrono::high_resolution_clock::now();
-            auto duration_scalar = std::chrono::duration_cast<std::chrono::microseconds>(
-                end_scalar - start_scalar).count() / static_cast<double>(num_iterations);
-            
-            total_duration_scalar += duration_scalar;
-            min_duration_scalar = std::min(min_duration_scalar, duration_scalar);
-            max_duration_scalar = std::max(max_duration_scalar, duration_scalar);
-            
-            // Print progress
-            std::cout << "  Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
-        }
-        
+        });
+        std::cout << "  Scalar total " << num_epochs << " epochs time: "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(total_epoch_ns_scalar).count() << " ms\n";
+
         // Calculate average durations
         double avg_duration_optimized = total_duration_optimized / num_epochs;
         double avg_duration_scalar = total_duration_scalar / num_epochs;
-        
+
         // Calculate speedup
         double speedup = avg_duration_scalar / avg_duration_optimized;
-        
+
         // Print results
         std::cout << "\nVector size: " << size << "\n";
-        std::cout << "  Optimized implementation: " << std::fixed << std::setprecision(2) 
+        std::cout << "  Optimized implementation: " << std::fixed << std::setprecision(2)
                   << "min = " << min_duration_optimized << " µs, "
                   << "max = " << max_duration_optimized << " µs, "
                   << "avg = " << avg_duration_optimized << " µs\n";
-        std::cout << "  Scalar implementation: " << std::fixed << std::setprecision(2) 
+        std::cout << "  Scalar implementation: " << std::fixed << std::setprecision(2)
                   << "min = " << min_duration_scalar << " µs, "
                   << "max = " << max_duration_scalar << " µs, "
                   << "avg = " << avg_duration_scalar << " µs\n";
@@ -477,43 +555,49 @@ void test_batch_cosine_similarity() {
 
     // Test case 1: Batch of identical vectors
     {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
         const size_t vector_size = 4;
         const size_t batch_size = 3;
-        
+
         // Create reference vector
         std::vector<float> b = {1.0f, 2.0f, 3.0f, 4.0f};
-        
+
         // Create batch of vectors
         std::vector<std::vector<float>> batch_vectors = {
-            {1.0f, 2.0f, 3.0f, 4.0f},  // Identical to reference (cosine = 1.0)
-            {2.0f, 4.0f, 6.0f, 8.0f},  // Scaled version of reference (cosine = 1.0)
-            {4.0f, 3.0f, 2.0f, 1.0f}   // Different vector
+            {1.0f, 2.0f, 3.0f, 4.0f}, // Identical to reference (cosine = 1.0)
+            {2.0f, 4.0f, 6.0f, 8.0f}, // Scaled version of reference (cosine = 1.0)
+            {4.0f, 3.0f, 2.0f, 1.0f}  // Different vector
         };
-        
         // Create array of pointers for batch API
-        std::vector<const float*> a_ptrs(batch_size);
+        std::vector<const float *> a_ptrs(batch_size);
         for (size_t i = 0; i < batch_size; ++i) {
             a_ptrs[i] = batch_vectors[i].data();
         }
-        
+
         // Results array
         std::vector<float> results(batch_size, 0.0f);
-        
+
         // Call batch function
         wheel::linalg_boost::batch_cosine_similarity(a_ptrs.data(), b.data(), vector_size, batch_size, results.data());
-        
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
         // Expected results
         std::vector<float> expected = {
-            1.0f,  // Identical vector
-            1.0f,  // Scaled vector (same direction)
-            0.6667f  // Approximately 0.6667 for the given vectors
+            1.0f,   // Identical vector
+            1.0f,   // Scaled vector (same direction)
+            0.6667f // Approximately 0.6667 for the given vectors
         };
-        
+
+        std::cout << "  Case 1 (time cost: " << duration.count() << " μs):\n";
+
         // Check results
         for (size_t i = 0; i < batch_size; ++i) {
-            std::cout << "  Case 1, vector " << i << ": result = " << results[i] 
-                      << ", expected " << (i < 2 ? "exactly " : "approximately ") << expected[i] << "\n";
-            
+            std::cout << "    vector " << i << ": result = " << results[i] << ", expected "
+                      << (i < 2 ? "exactly " : "approximately ") << expected[i] << "\n";
+
             if (i < 2 && !almost_equal(results[i], expected[i])) {
                 std::cout << "  FAILED: Test case 1, vector " << i << "\n";
                 all_passed = false;
@@ -523,63 +607,79 @@ void test_batch_cosine_similarity() {
             }
         }
     }
-    
+
     // Test case 2: Zero vector handling
     {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
         const size_t vector_size = 3;
         const size_t batch_size = 2;
-        
+
         // Reference vector is zero
         std::vector<float> zero_ref = {0.0f, 0.0f, 0.0f};
-        
+
         // Batch vectors
         std::vector<std::vector<float>> batch_vectors = {
-            {1.0f, 2.0f, 3.0f},  // Normal vector
-            {0.0f, 0.0f, 0.0f}   // Zero vector
+            {1.0f, 2.0f, 3.0f}, // Normal vector
+            {0.0f, 0.0f, 0.0f}  // Zero vector
         };
-        
+
         // Create array of pointers
-        std::vector<const float*> a_ptrs(batch_size);
+        std::vector<const float *> a_ptrs(batch_size);
         for (size_t i = 0; i < batch_size; ++i) {
             a_ptrs[i] = batch_vectors[i].data();
         }
-        
+
         // Results array
-        std::vector<float> results(batch_size, -99.0f);  // Initialize with invalid value
-        
+        std::vector<float> results(batch_size, -99.0f); // Initialize with invalid value
+
         // Call batch function with zero reference vector
-        wheel::linalg_boost::batch_cosine_similarity(a_ptrs.data(), zero_ref.data(), vector_size, batch_size, results.data());
-        
+        wheel::linalg_boost::batch_cosine_similarity(a_ptrs.data(), zero_ref.data(), vector_size, batch_size,
+                                                     results.data());
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
+        std::cout << "  Case 2a (time cost: " << duration.count() << " μs):\n";
+
         // All results should be 0.0 when reference vector is zero
         for (size_t i = 0; i < batch_size; ++i) {
-            std::cout << "  Case 2a, vector " << i << ": result = " << results[i] << ", expected = 0.0\n";
+            std::cout << "    vector " << i << ": result = " << results[i] << ", expected = 0.0\n";
             if (!almost_equal(results[i], 0.0f)) {
                 std::cout << "  FAILED: Test case 2a, vector " << i << "\n";
                 all_passed = false;
             }
         }
-        
+
         // Now test with normal reference vector but zero in batch
+        auto start_time2 = std::chrono::high_resolution_clock::now();
+
         std::vector<float> normal_ref = {1.0f, 2.0f, 3.0f};
-        
+
         // Reset results
         std::fill(results.begin(), results.end(), -99.0f);
-        
+
         // Call batch function
-        wheel::linalg_boost::batch_cosine_similarity(a_ptrs.data(), normal_ref.data(), vector_size, batch_size, results.data());
-        
+        wheel::linalg_boost::batch_cosine_similarity(a_ptrs.data(), normal_ref.data(), vector_size, batch_size,
+                                                     results.data());
+
+        auto end_time2 = std::chrono::high_resolution_clock::now();
+        auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(end_time2 - start_time2);
+
         // Expected: first should be 1.0 (same vector), second should be 0.0 (zero vector)
         std::vector<float> expected = {1.0f, 0.0f};
-        
+
+        std::cout << "  Case 2b (time cost: " << duration2.count() << " μs):\n";
+
         for (size_t i = 0; i < batch_size; ++i) {
-            std::cout << "  Case 2b, vector " << i << ": result = " << results[i] << ", expected = " << expected[i] << "\n";
+            std::cout << "    vector " << i << ": result = " << results[i] << ", expected = " << expected[i] << "\n";
             if (!almost_equal(results[i], expected[i])) {
                 std::cout << "  FAILED: Test case 2b, vector " << i << "\n";
                 all_passed = false;
             }
         }
     }
-    
+
     if (all_passed) {
         std::cout << "Batch cosine similarity tests passed!\n\n";
     } else {
@@ -590,32 +690,32 @@ void test_batch_cosine_similarity() {
 // Performance test for batch cosine similarity function
 void test_batch_cosine_similarity_performance() {
     std::cout << "\n---------- Batch Cosine Similarity Performance Test ----------\n";
-    
+
     // Test vector sizes
     const std::vector<size_t> sizes = {1000, 10000, 100000};
     const std::vector<size_t> batch_sizes = {10, 50, 100};
     const int num_iterations = 20; // Number of iterations for each test
     const int num_epochs = 5;      // Number of epochs for averaging
-    
+
     for (auto size : sizes) {
         for (auto batch_size : batch_sizes) {
             std::cout << "\nVector size: " << size << ", Batch size: " << batch_size << "\n";
-            
+
             // Generate reference vector
             auto ref_vec = generate_random_vector(size);
-            
+
             // Generate batch of random vectors
             std::vector<std::vector<float>> batch_vectors;
-            std::vector<const float*> batch_ptrs(batch_size);
-            
+            std::vector<const float *> batch_ptrs(batch_size);
+
             for (size_t i = 0; i < batch_size; ++i) {
                 batch_vectors.push_back(generate_random_vector(size));
                 batch_ptrs[i] = batch_vectors[i].data();
             }
-            
+
             std::vector<float> batch_results(batch_size);
             std::vector<float> single_results(batch_size);
-            
+
             // Variables for timing
             double total_duration_batch = 0.0;
             double total_duration_single = 0.0;
@@ -623,61 +723,71 @@ void test_batch_cosine_similarity_performance() {
             double min_duration_single = std::numeric_limits<double>::max();
             double max_duration_batch = 0.0;
             double max_duration_single = 0.0;
-            
-            // Run multiple epochs for more accurate measurements
-            for (int epoch = 0; epoch < num_epochs; ++epoch) {
-                // Measure batch implementation
-                auto start_batch = std::chrono::high_resolution_clock::now();
-                for (int i = 0; i < num_iterations; ++i) {
-                    wheel::linalg_boost::batch_cosine_similarity(
-                        batch_ptrs.data(), ref_vec.data(), size, batch_size, batch_results.data());
-                }
-                auto end_batch = std::chrono::high_resolution_clock::now();
-                auto duration_batch = std::chrono::duration_cast<std::chrono::microseconds>(
-                    end_batch - start_batch).count() / static_cast<double>(num_iterations);
-                
-                total_duration_batch += duration_batch;
-                min_duration_batch = std::min(min_duration_batch, duration_batch);
-                max_duration_batch = std::max(max_duration_batch, duration_batch);
-                
-                // Measure multiple single calls implementation
-                auto start_single = std::chrono::high_resolution_clock::now();
-                for (int i = 0; i < num_iterations; ++i) {
-                    for (size_t j = 0; j < batch_size; ++j) {
-                        single_results[j] = wheel::linalg_boost::cosine_similarity(
-                            batch_vectors[j].data(), ref_vec.data(), size);
+
+            // Optimized version: multi-epoch timing
+            auto total_epoch_ns_batch = wheel::measure_duration([&] {
+                for (int epoch = 0; epoch < num_epochs; ++epoch) {
+                    auto start_batch = std::chrono::high_resolution_clock::now();
+                    for (int i = 0; i < num_iterations; ++i) {
+                        wheel::linalg_boost::batch_cosine_similarity(batch_ptrs.data(), ref_vec.data(), size,
+                                                                     batch_size, batch_results.data());
                     }
+                    auto end_batch = std::chrono::high_resolution_clock::now();
+                    auto duration_batch =
+                        std::chrono::duration_cast<std::chrono::microseconds>(end_batch - start_batch).count() /
+                        static_cast<double>(num_iterations);
+
+                    total_duration_batch += duration_batch;
+                    min_duration_batch = std::min(min_duration_batch, duration_batch);
+                    max_duration_batch = std::max(max_duration_batch, duration_batch);
+                    std::cout << "  Batch Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
                 }
-                auto end_single = std::chrono::high_resolution_clock::now();
-                auto duration_single = std::chrono::duration_cast<std::chrono::microseconds>(
-                    end_single - start_single).count() / static_cast<double>(num_iterations);
-                
-                total_duration_single += duration_single;
-                min_duration_single = std::min(min_duration_single, duration_single);
-                max_duration_single = std::max(max_duration_single, duration_single);
-                
-                // Print progress
-                std::cout << "  Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
-            }
-            
+            });
+            std::cout << "  Batch total " << num_epochs << " epochs time: "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(total_epoch_ns_batch).count() << " ms\n";
+
+            // Scalar version: multi-epoch timing
+            auto total_epoch_ns_single = wheel::measure_duration([&] {
+                for (int epoch = 0; epoch < num_epochs; ++epoch) {
+                    auto start_single = std::chrono::high_resolution_clock::now();
+                    for (int i = 0; i < num_iterations; ++i) {
+                        for (size_t j = 0; j < batch_size; ++j) {
+                            single_results[j] = wheel::linalg_boost::cosine_similarity(batch_vectors[j].data(),
+                                                                                       ref_vec.data(), size);
+                        }
+                    }
+                    auto end_single = std::chrono::high_resolution_clock::now();
+                    auto duration_single =
+                        std::chrono::duration_cast<std::chrono::microseconds>(end_single - start_single).count() /
+                        static_cast<double>(num_iterations);
+
+                    total_duration_single += duration_single;
+                    min_duration_single = std::min(min_duration_single, duration_single);
+                    max_duration_single = std::max(max_duration_single, duration_single);
+                    std::cout << "  Scalar Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
+                }
+            });
+            std::cout << "  Scalar total " << num_epochs << " epochs time: "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(total_epoch_ns_single).count() << " ms\n";
+
             // Calculate average durations
             double avg_duration_batch = total_duration_batch / num_epochs;
             double avg_duration_single = total_duration_single / num_epochs;
-            
+
             // Calculate speedup
             double speedup = avg_duration_single / avg_duration_batch;
-            
+
             // Print results
-            std::cout << "\n  Batch implementation: " << std::fixed << std::setprecision(2) 
+            std::cout << "  Batch implementation: " << std::fixed << std::setprecision(2)
                       << "min = " << min_duration_batch << " µs, "
                       << "max = " << max_duration_batch << " µs, "
                       << "avg = " << avg_duration_batch << " µs\n";
-            std::cout << "  Multiple single calls: " << std::fixed << std::setprecision(2) 
+            std::cout << "  Multiple single calls: " << std::fixed << std::setprecision(2)
                       << "min = " << min_duration_single << " µs, "
                       << "max = " << max_duration_single << " µs, "
                       << "avg = " << avg_duration_single << " µs\n";
             std::cout << "  Speedup: " << std::fixed << std::setprecision(2) << speedup << "x\n";
-            
+
             // Verify results match between batch and single calls
             bool results_match = true;
             for (size_t i = 0; i < batch_size; ++i) {
@@ -698,21 +808,23 @@ void test_mean_pooling() {
 
     // Test case 1: Simple average of two vectors
     {
-        std::vector<std::vector<float>> vectors = {
-            {1.0f, 2.0f, 3.0f, 4.0f},
-            {5.0f, 6.0f, 7.0f, 8.0f}
-        };
-        
+        auto start_time = std::chrono::high_resolution_clock::now();
+
+        std::vector<std::vector<float>> vectors = {{1.0f, 2.0f, 3.0f, 4.0f}, {5.0f, 6.0f, 7.0f, 8.0f}};
+
         std::vector<float> result = wheel::linalg_boost::mean_pooling(vectors);
-        
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
         std::vector<float> expected = {3.0f, 4.0f, 5.0f, 6.0f}; // Average of the two vectors
-        
-        std::cout << "  Case 1: ";
+
+        std::cout << "  Case 1 (time cost: " << duration.count() << " μs): ";
         for (size_t i = 0; i < result.size(); ++i) {
             std::cout << result[i] << " ";
             if (!almost_equal(result[i], expected[i])) {
-                std::cout << "\n  FAILED: Test case 1 at index " << i 
-                          << ", got " << result[i] << ", expected " << expected[i] << "\n";
+                std::cout << "\n  FAILED: Test case 1 at index " << i << ", got " << result[i] << ", expected "
+                          << expected[i] << "\n";
                 all_passed = false;
             }
         }
@@ -721,23 +833,24 @@ void test_mean_pooling() {
 
     // Test case 2: Average of multiple vectors
     {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
         std::vector<std::vector<float>> vectors = {
-            {1.0f, 1.0f, 1.0f},
-            {2.0f, 2.0f, 2.0f},
-            {3.0f, 3.0f, 3.0f},
-            {4.0f, 4.0f, 4.0f}
-        };
-        
+            {1.0f, 1.0f, 1.0f}, {2.0f, 2.0f, 2.0f}, {3.0f, 3.0f, 3.0f}, {4.0f, 4.0f, 4.0f}};
+
         std::vector<float> result = wheel::linalg_boost::mean_pooling(vectors);
-        
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
         std::vector<float> expected = {2.5f, 2.5f, 2.5f}; // (1+2+3+4)/4 = 2.5
-        
-        std::cout << "  Case 2: ";
+
+        std::cout << "  Case 2 (time cost: " << duration.count() << " μs): ";
         for (size_t i = 0; i < result.size(); ++i) {
             std::cout << result[i] << " ";
             if (!almost_equal(result[i], expected[i])) {
-                std::cout << "\n  FAILED: Test case 2 at index " << i 
-                          << ", got " << result[i] << ", expected " << expected[i] << "\n";
+                std::cout << "\n  FAILED: Test case 2 at index " << i << ", got " << result[i] << ", expected "
+                          << expected[i] << "\n";
                 all_passed = false;
             }
         }
@@ -746,26 +859,31 @@ void test_mean_pooling() {
 
     // Test case 3: Handling longer vectors (to test SIMD optimization)
     {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
         const size_t vector_size = 16;
         std::vector<std::vector<float>> vectors;
-        
+
         // Create 8 vectors with increasing values
         for (size_t k = 0; k < 8; ++k) {
             std::vector<float> vec(vector_size, static_cast<float>(k + 1));
             vectors.push_back(vec);
         }
-        
+
         std::vector<float> result = wheel::linalg_boost::mean_pooling(vectors);
-        
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
         // Expected: average is (1+2+3+4+5+6+7+8)/8 = 4.5
         std::vector<float> expected(vector_size, 4.5f);
-        
-        std::cout << "  Case 3: ";
+
+        std::cout << "  Case 3 (time cost: " << duration.count() << " μs): ";
         bool case_passed = true;
         for (size_t i = 0; i < result.size(); ++i) {
             if (!almost_equal(result[i], expected[i])) {
-                std::cout << "\n  FAILED: Test case 3 at index " << i 
-                          << ", got " << result[i] << ", expected " << expected[i] << "\n";
+                std::cout << "\n  FAILED: Test case 3 at index " << i << ", got " << result[i] << ", expected "
+                          << expected[i] << "\n";
                 all_passed = false;
                 case_passed = false;
                 break;
@@ -776,22 +894,23 @@ void test_mean_pooling() {
 
     // Test case 4: Different values at different positions
     {
-        std::vector<std::vector<float>> vectors = {
-            {1.0f, 10.0f, 100.0f},
-            {3.0f, 30.0f, 300.0f},
-            {5.0f, 50.0f, 500.0f}
-        };
-        
+        auto start_time = std::chrono::high_resolution_clock::now();
+
+        std::vector<std::vector<float>> vectors = {{1.0f, 10.0f, 100.0f}, {3.0f, 30.0f, 300.0f}, {5.0f, 50.0f, 500.0f}};
+
         std::vector<float> result = wheel::linalg_boost::mean_pooling(vectors);
-        
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
         std::vector<float> expected = {3.0f, 30.0f, 300.0f}; // Position-wise average
-        
-        std::cout << "  Case 4: ";
+
+        std::cout << "  Case 4 (time cost: " << duration.count() << " μs): ";
         for (size_t i = 0; i < result.size(); ++i) {
             std::cout << result[i] << " ";
             if (!almost_equal(result[i], expected[i])) {
-                std::cout << "\n  FAILED: Test case 4 at index " << i 
-                          << ", got " << result[i] << ", expected " << expected[i] << "\n";
+                std::cout << "\n  FAILED: Test case 4 at index " << i << ", got " << result[i] << ", expected "
+                          << expected[i] << "\n";
                 all_passed = false;
             }
         }
@@ -808,32 +927,32 @@ void test_mean_pooling() {
 // Performance test for mean pooling function
 void test_mean_pooling_performance() {
     std::cout << "\n---------- Mean Pooling Performance Test ----------\n";
-    
+
     // Test different vector sizes
     const std::vector<size_t> sizes = {1000, 10000, 100000};
     const std::vector<size_t> num_vectors_list = {2, 10, 50};
     const int num_iterations = 50; // Number of iterations for each test
     const int num_epochs = 5;      // Number of epochs for averaging
-    
+
     for (auto size : sizes) {
         for (auto num_vectors : num_vectors_list) {
             std::cout << "\nVector size: " << size << ", Number of vectors: " << num_vectors << "\n";
-            
+
             // Generate random vectors
             std::vector<std::vector<float>> vectors;
-            std::vector<const float*> vec_ptrs(num_vectors);
-            
+            std::vector<const float *> vec_ptrs(num_vectors);
+
             for (size_t i = 0; i < num_vectors; ++i) {
                 vectors.push_back(generate_random_vector(size));
                 vec_ptrs[i] = vectors[i].data();
             }
-            
+
             // Prepare result vector for optimized implementation
             std::vector<float> result_optimized(size);
-            
+
             // Prepare result vector for scalar implementation
             std::vector<float> result_scalar(size);
-            
+
             // Variables for timing
             double total_duration_optimized = 0.0;
             double total_duration_scalar = 0.0;
@@ -841,57 +960,68 @@ void test_mean_pooling_performance() {
             double min_duration_scalar = std::numeric_limits<double>::max();
             double max_duration_optimized = 0.0;
             double max_duration_scalar = 0.0;
-            
-            // Run multiple epochs for more accurate measurements
-            for (int epoch = 0; epoch < num_epochs; ++epoch) {
-                // Measure optimized implementation
-                auto start_optimized = std::chrono::high_resolution_clock::now();
-                for (int i = 0; i < num_iterations; ++i) {
-                    wheel::linalg_boost::mean_pooling(vec_ptrs.data(), size, num_vectors, result_optimized.data());
+
+            // Optimized version: multi-epoch timing
+            auto total_epoch_ns_optimized = wheel::measure_duration([&] {
+                for (int epoch = 0; epoch < num_epochs; ++epoch) {
+                    auto start_optimized = std::chrono::high_resolution_clock::now();
+                    for (int i = 0; i < num_iterations; ++i) {
+                        wheel::linalg_boost::mean_pooling(vec_ptrs.data(), size, num_vectors, result_optimized.data());
+                    }
+                    auto end_optimized = std::chrono::high_resolution_clock::now();
+                    auto duration_optimized =
+                        std::chrono::duration_cast<std::chrono::microseconds>(end_optimized - start_optimized).count() /
+                        static_cast<double>(num_iterations);
+
+                    total_duration_optimized += duration_optimized;
+                    min_duration_optimized = std::min(min_duration_optimized, duration_optimized);
+                    max_duration_optimized = std::max(max_duration_optimized, duration_optimized);
+                    std::cout << "  Optimized Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
                 }
-                auto end_optimized = std::chrono::high_resolution_clock::now();
-                auto duration_optimized = std::chrono::duration_cast<std::chrono::microseconds>(
-                    end_optimized - start_optimized).count() / static_cast<double>(num_iterations);
-                
-                total_duration_optimized += duration_optimized;
-                min_duration_optimized = std::min(min_duration_optimized, duration_optimized);
-                max_duration_optimized = std::max(max_duration_optimized, duration_optimized);
-                
-                // Measure scalar implementation
-                auto start_scalar = std::chrono::high_resolution_clock::now();
-                for (int i = 0; i < num_iterations; ++i) {
-                    wheel::linalg_boost::detail::mean_pooling_scalar(vec_ptrs.data(), size, num_vectors, result_scalar.data());
+            });
+            std::cout << "  Optimized total " << num_epochs << " epochs time: "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(total_epoch_ns_optimized).count() << " ms\n";
+
+            // Scalar version: multi-epoch timing
+            auto total_epoch_ns_scalar = wheel::measure_duration([&] {
+                for (int epoch = 0; epoch < num_epochs; ++epoch) {
+                    auto start_scalar = std::chrono::high_resolution_clock::now();
+                    for (int i = 0; i < num_iterations; ++i) {
+                        wheel::linalg_boost::detail::mean_pooling_scalar(vec_ptrs.data(), size, num_vectors,
+                                                                         result_scalar.data());
+                    }
+                    auto end_scalar = std::chrono::high_resolution_clock::now();
+                    auto duration_scalar =
+                        std::chrono::duration_cast<std::chrono::microseconds>(end_scalar - start_scalar).count() /
+                        static_cast<double>(num_iterations);
+
+                    total_duration_scalar += duration_scalar;
+                    min_duration_scalar = std::min(min_duration_scalar, duration_scalar);
+                    max_duration_scalar = std::max(max_duration_scalar, duration_scalar);
+                    std::cout << "  Scalar Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
                 }
-                auto end_scalar = std::chrono::high_resolution_clock::now();
-                auto duration_scalar = std::chrono::duration_cast<std::chrono::microseconds>(
-                    end_scalar - start_scalar).count() / static_cast<double>(num_iterations);
-                
-                total_duration_scalar += duration_scalar;
-                min_duration_scalar = std::min(min_duration_scalar, duration_scalar);
-                max_duration_scalar = std::max(max_duration_scalar, duration_scalar);
-                
-                // Print progress
-                std::cout << "  Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
-            }
-            
+            });
+            std::cout << "  Scalar total " << num_epochs << " epochs time: "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(total_epoch_ns_scalar).count() << " ms\n";
+
             // Calculate average durations
             double avg_duration_optimized = total_duration_optimized / num_epochs;
             double avg_duration_scalar = total_duration_scalar / num_epochs;
-            
+
             // Calculate speedup
             double speedup = avg_duration_scalar / avg_duration_optimized;
-            
+
             // Print results
-            std::cout << "\n  Optimized implementation: " << std::fixed << std::setprecision(2) 
+            std::cout << "\n  Optimized implementation: " << std::fixed << std::setprecision(2)
                       << "min = " << min_duration_optimized << " µs, "
                       << "max = " << max_duration_optimized << " µs, "
                       << "avg = " << avg_duration_optimized << " µs\n";
-            std::cout << "  Scalar implementation: " << std::fixed << std::setprecision(2) 
+            std::cout << "  Scalar implementation: " << std::fixed << std::setprecision(2)
                       << "min = " << min_duration_scalar << " µs, "
                       << "max = " << max_duration_scalar << " µs, "
                       << "avg = " << avg_duration_scalar << " µs\n";
             std::cout << "  Speedup: " << std::fixed << std::setprecision(2) << speedup << "x\n";
-            
+
             // Verify results match between optimized and scalar implementations
             bool results_match = true;
             for (size_t i = 0; i < size; ++i) {
@@ -905,66 +1035,71 @@ void test_mean_pooling_performance() {
     }
 }
 
-// Test function for batch mean pooling
-void test_batch_mean_pooling() {
-    std::cout << "Testing batch mean pooling function...\n";
+// Test function for batch channel mean pooling
+void test_batch_channel_mean_pooling() {
+    std::cout << "Testing batch channel mean pooling function...\n";
     bool all_passed = true;
 
-    // Test case 1: Simple batch mean pooling (2 batches, 3 channels each)
+    // Test case 1: Simple batch channel mean pooling (2 batches, 3 channels each)
     {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
         const size_t batch_size = 2;
         const size_t channel_dim = 3;
         const size_t feature_dim = 4;
-        
+
         // Create two batches with 3 channels each
-        std::vector<std::vector<std::vector<float>>> matrix = {
-            { // Batch 0
-                {1.0f, 2.0f, 3.0f, 4.0f},    // Channel 0
-                {5.0f, 6.0f, 7.0f, 8.0f},    // Channel 1
-                {9.0f, 10.0f, 11.0f, 12.0f}  // Channel 2
-            },
-            { // Batch 1
-                {2.0f, 4.0f, 6.0f, 8.0f},    // Channel 0
-                {10.0f, 12.0f, 14.0f, 16.0f}, // Channel 1
-                {18.0f, 20.0f, 22.0f, 24.0f}  // Channel 2
-            }
-        };
-        
+        std::vector<std::vector<std::vector<float>>> matrix = {{
+                                                                   // Batch 0
+                                                                   {1.0f, 2.0f, 3.0f, 4.0f},   // Channel 0
+                                                                   {5.0f, 6.0f, 7.0f, 8.0f},   // Channel 1
+                                                                   {9.0f, 10.0f, 11.0f, 12.0f} // Channel 2
+                                                               },
+                                                               {
+                                                                   // Batch 1
+                                                                   {2.0f, 4.0f, 6.0f, 8.0f},     // Channel 0
+                                                                   {10.0f, 12.0f, 14.0f, 16.0f}, // Channel 1
+                                                                   {18.0f, 20.0f, 22.0f, 24.0f}  // Channel 2
+                                                               }};
+
+        // Call batch channel mean pooling
+        auto results = wheel::linalg_boost::batch_channel_mean_pooling(matrix);
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
         // Expected results: average across channels for each batch
         std::vector<std::vector<float>> expected = {
-            {5.0f, 6.0f, 7.0f, 8.0f},     // Batch 0: avg of 3 channels
-            {10.0f, 12.0f, 14.0f, 16.0f}  // Batch 1: avg of 3 channels
+            {5.0f, 6.0f, 7.0f, 8.0f},    // Batch 0: avg of 3 channels
+            {10.0f, 12.0f, 14.0f, 16.0f} // Batch 1: avg of 3 channels
         };
-        
-        // Call batch mean pooling
-        auto results = wheel::linalg_boost::batch_mean_pooling(matrix);
-        
+
         // Check results
-        std::cout << "  Case 1 results:\n";
+        std::cout << "  Case 1 (time cost: " << duration.count() << " μs):\n";
         for (size_t b = 0; b < batch_size; ++b) {
             std::cout << "    Batch " << b << ": ";
             for (size_t i = 0; i < feature_dim; ++i) {
                 std::cout << results[b][i] << " ";
-                
+
                 if (!almost_equal(results[b][i], expected[b][i])) {
-                    std::cout << "\n    FAILED: Test case 1, batch " << b << ", feature " << i 
-                              << ", got " << results[b][i] << ", expected " << expected[b][i] << "\n";
+                    std::cout << "\n    FAILED: Test case 1, batch " << b << ", feature " << i << ", got "
+                              << results[b][i] << ", expected " << expected[b][i] << "\n";
                     all_passed = false;
                 }
             }
             std::cout << "\n";
         }
     }
-    
+
     // Test case 2: Larger batch with identical channels
     {
         const size_t batch_size = 3;
         const size_t channel_dim = 4;
         const size_t feature_dim = 3;
-        
+
         // Create three batches with 4 identical channels each
         std::vector<std::vector<std::vector<float>>> matrix(batch_size);
-        
+
         // Fill batches with different values
         for (size_t b = 0; b < batch_size; ++b) {
             matrix[b].resize(channel_dim);
@@ -972,63 +1107,64 @@ void test_batch_mean_pooling() {
                 matrix[b][c] = std::vector<float>(feature_dim, static_cast<float>(b + 1));
             }
         }
-        
+
         // Expected results: same values since channels are identical in each batch
         std::vector<std::vector<float>> expected = {
             {1.0f, 1.0f, 1.0f}, // Batch 0: all 1s
             {2.0f, 2.0f, 2.0f}, // Batch 1: all 2s
             {3.0f, 3.0f, 3.0f}  // Batch 2: all 3s
         };
-        
-        // Call batch mean pooling
-        auto results = wheel::linalg_boost::batch_mean_pooling(matrix);
-        
+
+        // Call batch channel mean pooling
+        auto results = wheel::linalg_boost::batch_channel_mean_pooling(matrix);
+
         // Check results
         std::cout << "  Case 2 results:\n";
         for (size_t b = 0; b < batch_size; ++b) {
             std::cout << "    Batch " << b << ": ";
             for (size_t i = 0; i < feature_dim; ++i) {
                 std::cout << results[b][i] << " ";
-                
+
                 if (!almost_equal(results[b][i], expected[b][i])) {
-                    std::cout << "\n    FAILED: Test case 2, batch " << b << ", feature " << i 
-                              << ", got " << results[b][i] << ", expected " << expected[b][i] << "\n";
+                    std::cout << "\n    FAILED: Test case 2, batch " << b << ", feature " << i << ", got "
+                              << results[b][i] << ", expected " << expected[b][i] << "\n";
                     all_passed = false;
                 }
             }
             std::cout << "\n";
         }
     }
-    
+
     // Test case 3: Larger feature dimension to test SIMD optimization
     {
         const size_t batch_size = 2;
         const size_t channel_dim = 3;
         const size_t feature_dim = 8;
-        
+
         // Create batches with known values
         std::vector<std::vector<std::vector<float>>> matrix = {
-            { // Batch 0
-                {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},    // Channel 0
-                {2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f},    // Channel 1
-                {3.0f, 3.0f, 3.0f, 3.0f, 3.0f, 3.0f, 3.0f, 3.0f}     // Channel 2
+            {
+                // Batch 0
+                {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}, // Channel 0
+                {2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f}, // Channel 1
+                {3.0f, 3.0f, 3.0f, 3.0f, 3.0f, 3.0f, 3.0f, 3.0f}  // Channel 2
             },
-            { // Batch 1
-                {4.0f, 4.0f, 4.0f, 4.0f, 4.0f, 4.0f, 4.0f, 4.0f},    // Channel 0
-                {5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f},    // Channel 1
-                {6.0f, 6.0f, 6.0f, 6.0f, 6.0f, 6.0f, 6.0f, 6.0f}     // Channel 2
-            }
-        };
-        
+            {
+                // Batch 1
+                {4.0f, 4.0f, 4.0f, 4.0f, 4.0f, 4.0f, 4.0f, 4.0f}, // Channel 0
+                {5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f}, // Channel 1
+                {6.0f, 6.0f, 6.0f, 6.0f, 6.0f, 6.0f, 6.0f, 6.0f}  // Channel 2
+            }};
+
         // Expected results: average across channels for each batch
         std::vector<std::vector<float>> expected = {
-            {2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f},  // Batch 0: avg of (1+2+3)/3 = 2
-            {5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f}   // Batch 1: avg of (4+5+6)/3 = 5
+            {2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f}, // Batch 0: avg of (1+2+3)/3 = 2
+            {5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f}  // Batch 1: avg of (4+5+6)/3 = 5
         };
-        
-        // Call batch mean pooling
-        auto results = wheel::linalg_boost::batch_mean_pooling(matrix);
-        
+
+        // Call batch channel mean pooling
+        auto results = wheel::linalg_boost::batch_channel_mean_pooling(matrix);
+
         // Check results
         std::cout << "  Case 3 results:\n";
         for (size_t b = 0; b < batch_size; ++b) {
@@ -1036,8 +1172,8 @@ void test_batch_mean_pooling() {
             bool batch_passed = true;
             for (size_t i = 0; i < feature_dim; ++i) {
                 if (!almost_equal(results[b][i], expected[b][i])) {
-                    std::cout << "\n    FAILED: Test case 3, batch " << b << ", feature " << i 
-                              << ", got " << results[b][i] << ", expected " << expected[b][i] << "\n";
+                    std::cout << "\n    FAILED: Test case 3, batch " << b << ", feature " << i << ", got "
+                              << results[b][i] << ", expected " << expected[b][i] << "\n";
                     all_passed = false;
                     batch_passed = false;
                 }
@@ -1051,58 +1187,189 @@ void test_batch_mean_pooling() {
     }
 
     if (all_passed) {
-        std::cout << "Batch mean pooling tests passed!\n\n";
+        std::cout << "Batch channel mean pooling tests passed!\n\n";
     } else {
-        std::cout << "Some batch mean pooling tests failed!\n\n";
+        std::cout << "Some batch channel mean pooling tests failed!\n\n";
     }
 }
 
-// Performance test for batch mean pooling function
-void test_batch_mean_pooling_performance() {
-    std::cout << "\n---------- Batch Mean Pooling Performance Test ----------\n";
-    
-    // Test different configurations
-    const std::vector<size_t> feature_dims = {64, 256, 1024};
-    const std::vector<size_t> channel_dims = {3, 8};
-    const std::vector<size_t> batch_sizes = {2, 8};
+// Test function for batch feature mean pooling
+void test_batch_feature_mean_pooling() {
+    std::cout << "Testing batch feature mean pooling function...\n";
+    bool all_passed = true;
+
+    // Test case 1: Simple batch feature mean pooling (3 batches with 4 features each)
+    {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
+        const size_t batch_size = 3;
+        const size_t feature_dim = 4;
+
+        // Create three batches with 4 features each
+        std::vector<std::vector<float>> matrix = {
+            {1.0f, 2.0f, 3.0f, 4.0f},   // Batch 0
+            {5.0f, 6.0f, 7.0f, 8.0f},   // Batch 1
+            {9.0f, 10.0f, 11.0f, 12.0f} // Batch 2
+        };
+
+        // Call batch feature mean pooling
+        auto results = wheel::linalg_boost::batch_feature_mean_pooling(matrix);
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
+        // Expected results: average across features for each batch
+        std::vector<float> expected = {
+            2.5f, // Batch 0: (1+2+3+4)/4 = 2.5
+            6.5f, // Batch 1: (5+6+7+8)/4 = 6.5
+            10.5f // Batch 2: (9+10+11+12)/4 = 10.5
+        };
+
+        // Check results
+        std::cout << "  Case 1 (time cost: " << duration.count() << " μs):\n";
+        for (size_t b = 0; b < batch_size; ++b) {
+            std::cout << "    Batch " << b << ": " << results[b];
+
+            if (!almost_equal(results[b], expected[b])) {
+                std::cout << " - FAILED! Expected: " << expected[b] << "\n";
+                all_passed = false;
+            } else {
+                std::cout << "\n";
+            }
+        }
+    }
+
+    // Test case 2: Batch with all identical values
+    {
+        const size_t batch_size = 4;
+        const size_t feature_dim = 5;
+
+        // Create batches where each batch has a single unique value
+        std::vector<std::vector<float>> matrix(batch_size);
+
+        // Fill batches with different values
+        for (size_t b = 0; b < batch_size; ++b) {
+            matrix[b] = std::vector<float>(feature_dim, static_cast<float>(b + 1));
+        }
+
+        // Expected results: same value for each batch (since all elements are identical)
+        std::vector<float> expected = {
+            1.0f, // Batch 0: all 1s
+            2.0f, // Batch 1: all 2s
+            3.0f, // Batch 2: all 3s
+            4.0f  // Batch 3: all 4s
+        };
+
+        // Call batch feature mean pooling
+        auto results = wheel::linalg_boost::batch_feature_mean_pooling(matrix);
+
+        // Check results
+        std::cout << "  Case 2 results:\n";
+        for (size_t b = 0; b < batch_size; ++b) {
+            std::cout << "    Batch " << b << ": " << results[b];
+
+            if (!almost_equal(results[b], expected[b])) {
+                std::cout << " - FAILED! Expected: " << expected[b] << "\n";
+                all_passed = false;
+            } else {
+                std::cout << "\n";
+            }
+        }
+    }
+
+    // Test case 3: Larger feature dimension to test SIMD optimization
+    {
+        const size_t batch_size = 2;
+        const size_t feature_dim = 16;
+
+        // Create batches with different patterns
+        std::vector<std::vector<float>> matrix = {// Batch 0: all 1.0
+                                                  std::vector<float>(feature_dim, 1.0f),
+
+                                                  // Batch 1: alternating 2.0 and 4.0
+                                                  std::vector<float>(feature_dim, 0.0f)};
+
+        // Fill batch 1 with alternating values
+        for (size_t i = 0; i < feature_dim; ++i) {
+            matrix[1][i] = (i % 2 == 0) ? 2.0f : 4.0f;
+        }
+
+        // Expected results
+        std::vector<float> expected = {
+            1.0f, // Batch 0: all elements are 1.0
+            3.0f  // Batch 1: average of alternating 2.0 and 4.0 is 3.0
+        };
+
+        // Call batch feature mean pooling
+        auto results = wheel::linalg_boost::batch_feature_mean_pooling(matrix);
+
+        // Check results
+        std::cout << "  Case 3 results:\n";
+        for (size_t b = 0; b < batch_size; ++b) {
+            std::cout << "    Batch " << b << ": " << results[b];
+
+            if (!almost_equal(results[b], expected[b])) {
+                std::cout << " - FAILED! Expected: " << expected[b] << "\n";
+                all_passed = false;
+            } else {
+                std::cout << "\n";
+            }
+        }
+    }
+
+    if (all_passed) {
+        std::cout << "Batch feature mean pooling tests passed!\n\n";
+    } else {
+        std::cout << "Some batch feature mean pooling tests failed!\n\n";
+    }
+}
+
+// Performance test for batch channel mean pooling function
+void test_batch_channel_mean_pooling_performance() {
+    std::cout << "\n---------- Batch Channel Mean Pooling Performance Test ----------\n";
+
+    // Test different configurations with increased sizes (at least 10x larger)
+    const std::vector<size_t> feature_dims = {640, 2560, 10240};
+    const std::vector<size_t> channel_dims = {30, 80};
+    const std::vector<size_t> batch_sizes = {20, 80};
     const int num_iterations = 20; // Number of iterations for each test
     const int num_epochs = 3;      // Number of epochs for averaging
-    
+
     for (auto feature_dim : feature_dims) {
         for (auto channel_dim : channel_dims) {
             for (auto batch_size : batch_sizes) {
-                std::cout << "\nFeature dim: " << feature_dim << ", Channel dim: " << channel_dim 
+                std::cout << "\nFeature dim: " << feature_dim << ", Channel dim: " << channel_dim
                           << ", Batch size: " << batch_size << "\n";
-                
+
                 // Generate random data
                 std::vector<std::vector<std::vector<float>>> matrix(batch_size);
-                std::vector<std::vector<const float*>> channel_ptrs(batch_size);
-                std::vector<const float**> batch_ptrs(batch_size);
-                
+                std::vector<std::vector<const float *>> channel_ptrs(batch_size);
+                std::vector<const float **> batch_ptrs(batch_size);
+
                 // Prepare batches of random vectors
                 for (size_t b = 0; b < batch_size; ++b) {
                     matrix[b].resize(channel_dim);
                     channel_ptrs[b].resize(channel_dim);
-                    
+
                     for (size_t c = 0; c < channel_dim; ++c) {
                         matrix[b][c] = generate_random_vector(feature_dim);
                         channel_ptrs[b][c] = matrix[b][c].data();
                     }
-                    
+
                     batch_ptrs[b] = channel_ptrs[b].data();
                 }
-                
+
                 // Prepare result arrays
                 std::vector<std::vector<float>> results_optimized(batch_size, std::vector<float>(feature_dim));
                 std::vector<std::vector<float>> results_scalar(batch_size, std::vector<float>(feature_dim));
-                std::vector<float*> result_optimized_ptrs(batch_size);
-                std::vector<float*> result_scalar_ptrs(batch_size);
-                
+                std::vector<float *> result_optimized_ptrs(batch_size);
+                std::vector<float *> result_scalar_ptrs(batch_size);
+
                 for (size_t b = 0; b < batch_size; ++b) {
                     result_optimized_ptrs[b] = results_optimized[b].data();
                     result_scalar_ptrs[b] = results_scalar[b].data();
                 }
-                
+
                 // Variables for timing
                 double total_duration_optimized = 0.0;
                 double total_duration_scalar = 0.0;
@@ -1110,57 +1377,71 @@ void test_batch_mean_pooling_performance() {
                 double min_duration_scalar = std::numeric_limits<double>::max();
                 double max_duration_optimized = 0.0;
                 double max_duration_scalar = 0.0;
-                
-                // Run multiple epochs for more accurate measurements
-                for (int epoch = 0; epoch < num_epochs; ++epoch) {
-                    // Measure optimized implementation
-                    auto start_optimized = std::chrono::high_resolution_clock::now();
-                    for (int i = 0; i < num_iterations; ++i) {
-                        wheel::linalg_boost::batch_mean_pooling(batch_ptrs.data(), feature_dim, channel_dim, batch_size, result_optimized_ptrs.data());
+
+                // Optimized version: multi-epoch timing
+                auto total_epoch_ns_optimized = wheel::measure_duration([&] {
+                    for (int epoch = 0; epoch < num_epochs; ++epoch) {
+                        auto start_optimized = std::chrono::high_resolution_clock::now();
+                        for (int i = 0; i < num_iterations; ++i) {
+                            wheel::linalg_boost::batch_channel_mean_pooling(batch_ptrs.data(), feature_dim, channel_dim,
+                                                                            batch_size, result_optimized_ptrs.data());
+                        }
+                        auto end_optimized = std::chrono::high_resolution_clock::now();
+                        auto duration_optimized = std::chrono::duration_cast<std::chrono::microseconds>(
+                                                       end_optimized - start_optimized)
+                                                       .count() /
+                                                   static_cast<double>(num_iterations);
+
+                        total_duration_optimized += duration_optimized;
+                        min_duration_optimized = std::min(min_duration_optimized, duration_optimized);
+                        max_duration_optimized = std::max(max_duration_optimized, duration_optimized);
+                        std::cout << "  Optimized Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
                     }
-                    auto end_optimized = std::chrono::high_resolution_clock::now();
-                    auto duration_optimized = std::chrono::duration_cast<std::chrono::microseconds>(
-                        end_optimized - start_optimized).count() / static_cast<double>(num_iterations);
-                    
-                    total_duration_optimized += duration_optimized;
-                    min_duration_optimized = std::min(min_duration_optimized, duration_optimized);
-                    max_duration_optimized = std::max(max_duration_optimized, duration_optimized);
-                    
-                    // Measure scalar implementation
-                    auto start_scalar = std::chrono::high_resolution_clock::now();
-                    for (int i = 0; i < num_iterations; ++i) {
-                        wheel::linalg_boost::detail::batch_mean_pooling_scalar(batch_ptrs.data(), feature_dim, channel_dim, batch_size, result_scalar_ptrs.data());
+                });
+                std::cout << "  Optimized total " << num_epochs << " epochs time: "
+                          << std::chrono::duration_cast<std::chrono::milliseconds>(total_epoch_ns_optimized).count() << " ms\n";
+
+                // Scalar version: multi-epoch timing
+                auto total_epoch_ns_scalar = wheel::measure_duration([&] {
+                    for (int epoch = 0; epoch < num_epochs; ++epoch) {
+                        auto start_scalar = std::chrono::high_resolution_clock::now();
+                        for (int i = 0; i < num_iterations; ++i) {
+                            wheel::linalg_boost::detail::batch_channel_mean_pooling_scalar(
+                                batch_ptrs.data(), feature_dim, channel_dim, batch_size, result_scalar_ptrs.data());
+                        }
+                        auto end_scalar = std::chrono::high_resolution_clock::now();
+                        auto duration_scalar =
+                            std::chrono::duration_cast<std::chrono::microseconds>(end_scalar - start_scalar).count() /
+                            static_cast<double>(num_iterations);
+
+                        total_duration_scalar += duration_scalar;
+                        min_duration_scalar = std::min(min_duration_scalar, duration_scalar);
+                        max_duration_scalar = std::max(max_duration_scalar, duration_scalar);
+                        std::cout << "  Scalar Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
                     }
-                    auto end_scalar = std::chrono::high_resolution_clock::now();
-                    auto duration_scalar = std::chrono::duration_cast<std::chrono::microseconds>(
-                        end_scalar - start_scalar).count() / static_cast<double>(num_iterations);
-                    
-                    total_duration_scalar += duration_scalar;
-                    min_duration_scalar = std::min(min_duration_scalar, duration_scalar);
-                    max_duration_scalar = std::max(max_duration_scalar, duration_scalar);
-                    
-                    // Print progress
-                    std::cout << "  Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
-                }
-                
+                });
+                std::cout << "  Scalar total " << num_epochs << " epochs time: "
+                          << std::chrono::duration_cast<std::chrono::milliseconds>(total_epoch_ns_scalar).count() << " ms\n";
+
                 // Calculate average durations
                 double avg_duration_optimized = total_duration_optimized / num_epochs;
                 double avg_duration_scalar = total_duration_scalar / num_epochs;
-                
+
                 // Calculate speedup
                 double speedup = avg_duration_scalar / avg_duration_optimized;
-                
+
                 // Print results
-                std::cout << "\n  Optimized implementation: " << std::fixed << std::setprecision(2) 
+                // 已分开输出 optimized/scalar 总耗时
+                std::cout << "  Optimized implementation: " << std::fixed << std::setprecision(2)
                           << "min = " << min_duration_optimized << " µs, "
                           << "max = " << max_duration_optimized << " µs, "
                           << "avg = " << avg_duration_optimized << " µs\n";
-                std::cout << "  Scalar implementation: " << std::fixed << std::setprecision(2) 
+                std::cout << "  Scalar implementation: " << std::fixed << std::setprecision(2)
                           << "min = " << min_duration_scalar << " µs, "
                           << "max = " << max_duration_scalar << " µs, "
                           << "avg = " << avg_duration_scalar << " µs\n";
                 std::cout << "  Speedup: " << std::fixed << std::setprecision(2) << speedup << "x\n";
-                
+
                 // Verify results match between optimized and scalar implementations
                 bool results_match = true;
                 for (size_t b = 0; b < batch_size && results_match; ++b) {
@@ -1177,21 +1458,134 @@ void test_batch_mean_pooling_performance() {
     }
 }
 
+// Performance test for batch feature mean pooling function
+void test_batch_feature_mean_pooling_performance() {
+    std::cout << "\n---------- Batch Feature Mean Pooling Performance Test ----------\n";
+
+    // Test different configurations with increased sizes (at least 10x larger)
+    const std::vector<size_t> feature_dims = {640, 2560, 10240};
+    const std::vector<size_t> batch_sizes = {20, 80, 320};
+    const int num_iterations = 20; // Number of iterations for each test
+    const int num_epochs = 3;      // Number of epochs for averaging
+
+    for (auto feature_dim : feature_dims) {
+        for (auto batch_size : batch_sizes) {
+            std::cout << "\nFeature dim: " << feature_dim << ", Batch size: " << batch_size << "\n";
+
+            // Generate random data
+            std::vector<std::vector<float>> matrix(batch_size);
+            std::vector<const float *> batch_ptrs(batch_size);
+
+            // Prepare batches of random vectors
+            for (size_t b = 0; b < batch_size; ++b) {
+                matrix[b] = generate_random_vector(feature_dim);
+                batch_ptrs[b] = matrix[b].data();
+            }
+
+            // Prepare result arrays
+            std::vector<float> results_optimized(batch_size);
+            std::vector<float> results_scalar(batch_size);
+
+            // Variables for timing
+            double total_duration_optimized = 0.0;
+            double total_duration_scalar = 0.0;
+            double min_duration_optimized = std::numeric_limits<double>::max();
+            double min_duration_scalar = std::numeric_limits<double>::max();
+            double max_duration_optimized = 0.0;
+            double max_duration_scalar = 0.0;
+
+            // Optimized version: multi-epoch timing
+            auto total_epoch_ns_optimized = wheel::measure_duration([&] {
+                for (int epoch = 0; epoch < num_epochs; ++epoch) {
+                    auto start_optimized = std::chrono::high_resolution_clock::now();
+                    for (int i = 0; i < num_iterations; ++i) {
+                        wheel::linalg_boost::batch_feature_mean_pooling(batch_ptrs.data(), feature_dim, batch_size,
+                                                                        results_optimized.data());
+                    }
+                    auto end_optimized = std::chrono::high_resolution_clock::now();
+                    auto duration_optimized =
+                        std::chrono::duration_cast<std::chrono::microseconds>(end_optimized - start_optimized).count() /
+                        static_cast<double>(num_iterations);
+
+                    total_duration_optimized += duration_optimized;
+                    min_duration_optimized = std::min(min_duration_optimized, duration_optimized);
+                    max_duration_optimized = std::max(max_duration_optimized, duration_optimized);
+                    std::cout << "  Optimized Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
+                }
+            });
+            std::cout << "  Optimized total " << num_epochs << " epochs time: "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(total_epoch_ns_optimized).count() << " ms\n";
+
+            // Scalar version: multi-epoch timing
+            auto total_epoch_ns_scalar = wheel::measure_duration([&] {
+                for (int epoch = 0; epoch < num_epochs; ++epoch) {
+                    auto start_scalar = std::chrono::high_resolution_clock::now();
+                    for (int i = 0; i < num_iterations; ++i) {
+                        wheel::linalg_boost::detail::batch_feature_mean_pooling_scalar(batch_ptrs.data(), feature_dim,
+                                                                                       batch_size, results_scalar.data());
+                    }
+                    auto end_scalar = std::chrono::high_resolution_clock::now();
+                    auto duration_scalar =
+                        std::chrono::duration_cast<std::chrono::microseconds>(end_scalar - start_scalar).count() /
+                        static_cast<double>(num_iterations);
+
+                    total_duration_scalar += duration_scalar;
+                    min_duration_scalar = std::min(min_duration_scalar, duration_scalar);
+                    max_duration_scalar = std::max(max_duration_scalar, duration_scalar);
+                    std::cout << "  Scalar Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
+                }
+            });
+            std::cout << "  Scalar total " << num_epochs << " epochs time: "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(total_epoch_ns_scalar).count() << " ms\n";
+
+            // Calculate average durations
+            double avg_duration_optimized = total_duration_optimized / num_epochs;
+            double avg_duration_scalar = total_duration_scalar / num_epochs;
+
+            // Calculate speedup
+            double speedup = avg_duration_scalar / avg_duration_optimized;
+
+            // Print results
+            std::cout << "\n  Optimized implementation: " << std::fixed << std::setprecision(2)
+                      << "min = " << min_duration_optimized << " µs, "
+                      << "max = " << max_duration_optimized << " µs, "
+                      << "avg = " << avg_duration_optimized << " µs\n";
+            std::cout << "  Scalar implementation: " << std::fixed << std::setprecision(2)
+                      << "min = " << min_duration_scalar << " µs, "
+                      << "max = " << max_duration_scalar << " µs, "
+                      << "avg = " << avg_duration_scalar << " µs\n";
+            std::cout << "  Speedup: " << std::fixed << std::setprecision(2) << speedup << "x\n";
+
+            // Verify results match between optimized and scalar implementations
+            bool results_match = true;
+            for (size_t b = 0; b < batch_size; ++b) {
+                if (!almost_equal(results_optimized[b], results_scalar[b])) {
+                    results_match = false;
+                    break;
+                }
+            }
+            std::cout << "  Results match: " << (results_match ? "Yes" : "No") << "\n";
+        }
+    }
+}
+
 int main() {
     // Run all tests
     test_dot_product();
     test_cosine_similarity();
     test_batch_cosine_similarity();
     test_mean_pooling();
-    test_batch_mean_pooling(); // Add batch_mean_pooling test
+    test_batch_channel_mean_pooling();
+    test_batch_feature_mean_pooling();
     test_markdown_parsing();
-    
+
     // Run performance tests
     test_dot_product_performance();
     test_cosine_similarity_performance();
     test_batch_cosine_similarity_performance();
     test_mean_pooling_performance();
-    test_batch_mean_pooling_performance(); // Add batch_mean_pooling performance test
-    
+    test_batch_channel_mean_pooling_performance();
+    test_batch_feature_mean_pooling_performance();
+
     return 0;
 }
