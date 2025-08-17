@@ -828,4 +828,180 @@ namespace wheel::linalg_boost::detail {
         }
     }
 
+    /**
+     * @brief Portable scalar implementation of batch mean pooling
+     *
+     * @param matrix Array of batch pointers, where each batch contains channel_dim vectors of feature_dim elements
+     * @param feature_dim Size of each feature vector (inner dimension)
+     * @param channel_dim Number of vectors to average per batch item (middle dimension)
+     * @param batch_size Number of batches to process (outer dimension)
+     * @param results Output array to store batch results
+     */
+    inline void batch_mean_pooling_scalar(const float ***matrix, size_t feature_dim, size_t channel_dim, size_t batch_size, float **results) {
+        const float scale = 1.0f / static_cast<float>(channel_dim);
+        
+        // Process each batch independently
+        for (size_t b = 0; b < batch_size; ++b) {
+            // Zero initialize result for this batch
+            std::fill(results[b], results[b] + feature_dim, 0.0f);
+            
+            // Sum all vectors in this batch
+            for (size_t c = 0; c < channel_dim; ++c) {
+                const float *vec = matrix[b][c];
+                for (size_t i = 0; i < feature_dim; ++i) {
+                    results[b][i] += vec[i];
+                }
+            }
+            
+            // Scale the results
+            for (size_t i = 0; i < feature_dim; ++i) {
+                results[b][i] *= scale;
+            }
+        }
+    }
+
+#ifdef __aarch64__
+    /**
+     * @brief NEON-optimized implementation of batch mean pooling
+     *
+     * @param matrix Array of batch pointers, where each batch contains channel_dim vectors of feature_dim elements
+     * @param feature_dim Size of each feature vector (inner dimension)
+     * @param channel_dim Number of vectors to average per batch item (middle dimension)
+     * @param batch_size Number of batches to process (outer dimension)
+     * @param results Output array to store batch results
+     */
+    inline void batch_mean_pooling_neon(const float ***matrix, size_t feature_dim, size_t channel_dim, size_t batch_size, float **results) {
+        const float scale = 1.0f / static_cast<float>(channel_dim);
+        float32x4_t scale_vec = vdupq_n_f32(scale);
+        
+        // Process each
+        for (size_t b = 0; b < batch_size; ++b) {
+            float *result = results[b];
+            const float **batch_vectors = matrix[b];
+
+            for (size_t i = 0; i + 4 <= feature_dim; i += 4) {
+                vst1q_f32(result + i, vdupq_n_f32(0.0f));
+            }
+            for (size_t i = (feature_dim & ~size_t(3)); i < feature_dim; ++i) {
+                result[i] = 0.0f;
+            }
+            
+            // sum all vectors
+            for (size_t c = 0; c < channel_dim; ++c) {
+                const float *vec = batch_vectors[c];
+                
+                // Process in chunks of 4 floats
+                for (size_t i = 0; i + 4 <= feature_dim; i += 4) {
+                    float32x4_t current_sum = vld1q_f32(result + i);
+                    float32x4_t vec_chunk = vld1q_f32(vec + i);
+                    vst1q_f32(result + i, vaddq_f32(current_sum, vec_chunk));
+                }
+                
+                // Process remaining elements
+                for (size_t i = (feature_dim & ~size_t(3)); i < feature_dim; ++i) {
+                    result[i] += vec[i];
+                }
+            }
+            
+            // scale the results
+            for (size_t i = 0; i + 4 <= feature_dim; i += 4) {
+                float32x4_t sum_vec = vld1q_f32(result + i);
+                float32x4_t result_vec = vmulq_f32(sum_vec, scale_vec);
+                vst1q_f32(result + i, result_vec);
+            }
+            
+            // scale remaining
+            for (size_t i = (feature_dim & ~size_t(3)); i < feature_dim; ++i) {
+                result[i] *= scale;
+            }
+        }
+    }
+
+#ifdef LINALG_USE_ASM
+    /**
+     * @brief Assembly-optimized implementation of batch mean pooling for AArch64
+     *
+     * @param matrix Array of batch pointers, where each batch contains channel_dim vectors of feature_dim elements
+     * @param feature_dim Size of each feature vector (inner dimension)
+     * @param channel_dim Number of vectors to average per batch item (middle dimension)
+     * @param batch_size Number of batches to process (outer dimension)
+     * @param results Output array to store batch results
+     */
+    inline void batch_mean_pooling_asm_aarch64(const float ***matrix, size_t feature_dim, size_t channel_dim, size_t batch_size, float **results) {
+        const size_t blocks = feature_dim / 4;
+        const float scale = 1.0f / static_cast<float>(channel_dim);
+        
+        // Process each batch
+        for (size_t b = 0; b < batch_size; ++b) {
+            float *result = results[b];
+            const float **batch_vectors = matrix[b];
+            
+            // Initialize
+            for (size_t i = 0; i < blocks; ++i) {
+                float *res_ptr = result + (i * 4);
+                asm volatile(
+                    "eor v0.16b, v0.16b, v0.16b           \n" // sum = 0
+                    "st1 {v0.4s}, [%[res_ptr]]            \n" // Store zeros
+                    :
+                    : [res_ptr] "r"(res_ptr)
+                    : "v0", "memory"
+                );
+            }
+            
+            // remaining
+            for (size_t i = blocks * 4; i < feature_dim; ++i) {
+                result[i] = 0.0f;
+            }
+            
+            // Sum all
+            for (size_t c = 0; c < channel_dim; ++c) {
+                const float *vec_ptr = batch_vectors[c];
+                
+                // Process in blocks of 4 floats
+                for (size_t i = 0; i < blocks; ++i) {
+                    size_t offset = i * 4;
+                    float *res_ptr = result + offset;
+                    
+                    asm volatile(
+                        "ld1 {v0.4s}, [%[res_ptr]]            \n" // Load current sum
+                        "ld1 {v1.4s}, [%[vec_ptr]]            \n" // Load vector chunk
+                        "fadd v0.4s, v0.4s, v1.4s             \n" // sum += vec
+                        "st1 {v0.4s}, [%[res_ptr]]            \n" // Store updated sum
+                        :
+                        : [res_ptr] "r"(res_ptr), [vec_ptr] "r"(vec_ptr + offset)
+                        : "v0", "v1", "memory"
+                    );
+                }
+                
+                // remaining
+                for (size_t i = blocks * 4; i < feature_dim; ++i) {
+                    result[i] += vec_ptr[i];
+                }
+            }
+            
+            // scale the results
+            for (size_t i = 0; i < blocks; ++i) {
+                float *res_ptr = result + (i * 4);
+                
+                asm volatile(
+                    "fmov s2, %w[scale]                   \n" // Load scale factor
+                    "dup v2.4s, v2.s[0]                   \n" // Duplicate to all lanes
+                    "ld1 {v0.4s}, [%[res_ptr]]            \n" // Load sum
+                    "fmul v0.4s, v0.4s, v2.4s             \n" // result = sum * scale
+                    "st1 {v0.4s}, [%[res_ptr]]            \n" // Store result
+                    :
+                    : [scale] "r"(scale), [res_ptr] "r"(res_ptr)
+                    : "v0", "v2", "memory"
+                );
+            }
+            
+            // Scale remaining
+            for (size_t i = blocks * 4; i < feature_dim; ++i) {
+                result[i] *= scale;
+            }
+        }
+    }
+#endif // LINALG_USE_ASM
+#endif // __aarch64__
+
 } // namespace wheel::linalg_boost::detail

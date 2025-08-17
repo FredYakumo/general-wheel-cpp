@@ -905,12 +905,285 @@ void test_mean_pooling_performance() {
     }
 }
 
+// Test function for batch mean pooling
+void test_batch_mean_pooling() {
+    std::cout << "Testing batch mean pooling function...\n";
+    bool all_passed = true;
+
+    // Test case 1: Simple batch mean pooling (2 batches, 3 channels each)
+    {
+        const size_t batch_size = 2;
+        const size_t channel_dim = 3;
+        const size_t feature_dim = 4;
+        
+        // Create two batches with 3 channels each
+        std::vector<std::vector<std::vector<float>>> matrix = {
+            { // Batch 0
+                {1.0f, 2.0f, 3.0f, 4.0f},    // Channel 0
+                {5.0f, 6.0f, 7.0f, 8.0f},    // Channel 1
+                {9.0f, 10.0f, 11.0f, 12.0f}  // Channel 2
+            },
+            { // Batch 1
+                {2.0f, 4.0f, 6.0f, 8.0f},    // Channel 0
+                {10.0f, 12.0f, 14.0f, 16.0f}, // Channel 1
+                {18.0f, 20.0f, 22.0f, 24.0f}  // Channel 2
+            }
+        };
+        
+        // Expected results: average across channels for each batch
+        std::vector<std::vector<float>> expected = {
+            {5.0f, 6.0f, 7.0f, 8.0f},     // Batch 0: avg of 3 channels
+            {10.0f, 12.0f, 14.0f, 16.0f}  // Batch 1: avg of 3 channels
+        };
+        
+        // Call batch mean pooling
+        auto results = wheel::linalg_boost::batch_mean_pooling(matrix);
+        
+        // Check results
+        std::cout << "  Case 1 results:\n";
+        for (size_t b = 0; b < batch_size; ++b) {
+            std::cout << "    Batch " << b << ": ";
+            for (size_t i = 0; i < feature_dim; ++i) {
+                std::cout << results[b][i] << " ";
+                
+                if (!almost_equal(results[b][i], expected[b][i])) {
+                    std::cout << "\n    FAILED: Test case 1, batch " << b << ", feature " << i 
+                              << ", got " << results[b][i] << ", expected " << expected[b][i] << "\n";
+                    all_passed = false;
+                }
+            }
+            std::cout << "\n";
+        }
+    }
+    
+    // Test case 2: Larger batch with identical channels
+    {
+        const size_t batch_size = 3;
+        const size_t channel_dim = 4;
+        const size_t feature_dim = 3;
+        
+        // Create three batches with 4 identical channels each
+        std::vector<std::vector<std::vector<float>>> matrix(batch_size);
+        
+        // Fill batches with different values
+        for (size_t b = 0; b < batch_size; ++b) {
+            matrix[b].resize(channel_dim);
+            for (size_t c = 0; c < channel_dim; ++c) {
+                matrix[b][c] = std::vector<float>(feature_dim, static_cast<float>(b + 1));
+            }
+        }
+        
+        // Expected results: same values since channels are identical in each batch
+        std::vector<std::vector<float>> expected = {
+            {1.0f, 1.0f, 1.0f}, // Batch 0: all 1s
+            {2.0f, 2.0f, 2.0f}, // Batch 1: all 2s
+            {3.0f, 3.0f, 3.0f}  // Batch 2: all 3s
+        };
+        
+        // Call batch mean pooling
+        auto results = wheel::linalg_boost::batch_mean_pooling(matrix);
+        
+        // Check results
+        std::cout << "  Case 2 results:\n";
+        for (size_t b = 0; b < batch_size; ++b) {
+            std::cout << "    Batch " << b << ": ";
+            for (size_t i = 0; i < feature_dim; ++i) {
+                std::cout << results[b][i] << " ";
+                
+                if (!almost_equal(results[b][i], expected[b][i])) {
+                    std::cout << "\n    FAILED: Test case 2, batch " << b << ", feature " << i 
+                              << ", got " << results[b][i] << ", expected " << expected[b][i] << "\n";
+                    all_passed = false;
+                }
+            }
+            std::cout << "\n";
+        }
+    }
+    
+    // Test case 3: Larger feature dimension to test SIMD optimization
+    {
+        const size_t batch_size = 2;
+        const size_t channel_dim = 3;
+        const size_t feature_dim = 8;
+        
+        // Create batches with known values
+        std::vector<std::vector<std::vector<float>>> matrix = {
+            { // Batch 0
+                {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},    // Channel 0
+                {2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f},    // Channel 1
+                {3.0f, 3.0f, 3.0f, 3.0f, 3.0f, 3.0f, 3.0f, 3.0f}     // Channel 2
+            },
+            { // Batch 1
+                {4.0f, 4.0f, 4.0f, 4.0f, 4.0f, 4.0f, 4.0f, 4.0f},    // Channel 0
+                {5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f},    // Channel 1
+                {6.0f, 6.0f, 6.0f, 6.0f, 6.0f, 6.0f, 6.0f, 6.0f}     // Channel 2
+            }
+        };
+        
+        // Expected results: average across channels for each batch
+        std::vector<std::vector<float>> expected = {
+            {2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f},  // Batch 0: avg of (1+2+3)/3 = 2
+            {5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f}   // Batch 1: avg of (4+5+6)/3 = 5
+        };
+        
+        // Call batch mean pooling
+        auto results = wheel::linalg_boost::batch_mean_pooling(matrix);
+        
+        // Check results
+        std::cout << "  Case 3 results:\n";
+        for (size_t b = 0; b < batch_size; ++b) {
+            std::cout << "    Batch " << b << ": ";
+            bool batch_passed = true;
+            for (size_t i = 0; i < feature_dim; ++i) {
+                if (!almost_equal(results[b][i], expected[b][i])) {
+                    std::cout << "\n    FAILED: Test case 3, batch " << b << ", feature " << i 
+                              << ", got " << results[b][i] << ", expected " << expected[b][i] << "\n";
+                    all_passed = false;
+                    batch_passed = false;
+                }
+            }
+            if (batch_passed) {
+                std::cout << "All elements match expected value " << expected[b][0] << "\n";
+            } else {
+                std::cout << "\n";
+            }
+        }
+    }
+
+    if (all_passed) {
+        std::cout << "Batch mean pooling tests passed!\n\n";
+    } else {
+        std::cout << "Some batch mean pooling tests failed!\n\n";
+    }
+}
+
+// Performance test for batch mean pooling function
+void test_batch_mean_pooling_performance() {
+    std::cout << "\n---------- Batch Mean Pooling Performance Test ----------\n";
+    
+    // Test different configurations
+    const std::vector<size_t> feature_dims = {64, 256, 1024};
+    const std::vector<size_t> channel_dims = {3, 8};
+    const std::vector<size_t> batch_sizes = {2, 8};
+    const int num_iterations = 20; // Number of iterations for each test
+    const int num_epochs = 3;      // Number of epochs for averaging
+    
+    for (auto feature_dim : feature_dims) {
+        for (auto channel_dim : channel_dims) {
+            for (auto batch_size : batch_sizes) {
+                std::cout << "\nFeature dim: " << feature_dim << ", Channel dim: " << channel_dim 
+                          << ", Batch size: " << batch_size << "\n";
+                
+                // Generate random data
+                std::vector<std::vector<std::vector<float>>> matrix(batch_size);
+                std::vector<std::vector<const float*>> channel_ptrs(batch_size);
+                std::vector<const float**> batch_ptrs(batch_size);
+                
+                // Prepare batches of random vectors
+                for (size_t b = 0; b < batch_size; ++b) {
+                    matrix[b].resize(channel_dim);
+                    channel_ptrs[b].resize(channel_dim);
+                    
+                    for (size_t c = 0; c < channel_dim; ++c) {
+                        matrix[b][c] = generate_random_vector(feature_dim);
+                        channel_ptrs[b][c] = matrix[b][c].data();
+                    }
+                    
+                    batch_ptrs[b] = channel_ptrs[b].data();
+                }
+                
+                // Prepare result arrays
+                std::vector<std::vector<float>> results_optimized(batch_size, std::vector<float>(feature_dim));
+                std::vector<std::vector<float>> results_scalar(batch_size, std::vector<float>(feature_dim));
+                std::vector<float*> result_optimized_ptrs(batch_size);
+                std::vector<float*> result_scalar_ptrs(batch_size);
+                
+                for (size_t b = 0; b < batch_size; ++b) {
+                    result_optimized_ptrs[b] = results_optimized[b].data();
+                    result_scalar_ptrs[b] = results_scalar[b].data();
+                }
+                
+                // Variables for timing
+                double total_duration_optimized = 0.0;
+                double total_duration_scalar = 0.0;
+                double min_duration_optimized = std::numeric_limits<double>::max();
+                double min_duration_scalar = std::numeric_limits<double>::max();
+                double max_duration_optimized = 0.0;
+                double max_duration_scalar = 0.0;
+                
+                // Run multiple epochs for more accurate measurements
+                for (int epoch = 0; epoch < num_epochs; ++epoch) {
+                    // Measure optimized implementation
+                    auto start_optimized = std::chrono::high_resolution_clock::now();
+                    for (int i = 0; i < num_iterations; ++i) {
+                        wheel::linalg_boost::batch_mean_pooling(batch_ptrs.data(), feature_dim, channel_dim, batch_size, result_optimized_ptrs.data());
+                    }
+                    auto end_optimized = std::chrono::high_resolution_clock::now();
+                    auto duration_optimized = std::chrono::duration_cast<std::chrono::microseconds>(
+                        end_optimized - start_optimized).count() / static_cast<double>(num_iterations);
+                    
+                    total_duration_optimized += duration_optimized;
+                    min_duration_optimized = std::min(min_duration_optimized, duration_optimized);
+                    max_duration_optimized = std::max(max_duration_optimized, duration_optimized);
+                    
+                    // Measure scalar implementation
+                    auto start_scalar = std::chrono::high_resolution_clock::now();
+                    for (int i = 0; i < num_iterations; ++i) {
+                        wheel::linalg_boost::detail::batch_mean_pooling_scalar(batch_ptrs.data(), feature_dim, channel_dim, batch_size, result_scalar_ptrs.data());
+                    }
+                    auto end_scalar = std::chrono::high_resolution_clock::now();
+                    auto duration_scalar = std::chrono::duration_cast<std::chrono::microseconds>(
+                        end_scalar - start_scalar).count() / static_cast<double>(num_iterations);
+                    
+                    total_duration_scalar += duration_scalar;
+                    min_duration_scalar = std::min(min_duration_scalar, duration_scalar);
+                    max_duration_scalar = std::max(max_duration_scalar, duration_scalar);
+                    
+                    // Print progress
+                    std::cout << "  Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
+                }
+                
+                // Calculate average durations
+                double avg_duration_optimized = total_duration_optimized / num_epochs;
+                double avg_duration_scalar = total_duration_scalar / num_epochs;
+                
+                // Calculate speedup
+                double speedup = avg_duration_scalar / avg_duration_optimized;
+                
+                // Print results
+                std::cout << "\n  Optimized implementation: " << std::fixed << std::setprecision(2) 
+                          << "min = " << min_duration_optimized << " µs, "
+                          << "max = " << max_duration_optimized << " µs, "
+                          << "avg = " << avg_duration_optimized << " µs\n";
+                std::cout << "  Scalar implementation: " << std::fixed << std::setprecision(2) 
+                          << "min = " << min_duration_scalar << " µs, "
+                          << "max = " << max_duration_scalar << " µs, "
+                          << "avg = " << avg_duration_scalar << " µs\n";
+                std::cout << "  Speedup: " << std::fixed << std::setprecision(2) << speedup << "x\n";
+                
+                // Verify results match between optimized and scalar implementations
+                bool results_match = true;
+                for (size_t b = 0; b < batch_size && results_match; ++b) {
+                    for (size_t i = 0; i < feature_dim; ++i) {
+                        if (!almost_equal(results_optimized[b][i], results_scalar[b][i])) {
+                            results_match = false;
+                            break;
+                        }
+                    }
+                }
+                std::cout << "  Results match: " << (results_match ? "Yes" : "No") << "\n";
+            }
+        }
+    }
+}
+
 int main() {
     // Run all tests
     test_dot_product();
     test_cosine_similarity();
     test_batch_cosine_similarity();
     test_mean_pooling();
+    test_batch_mean_pooling(); // Add batch_mean_pooling test
     test_markdown_parsing();
     
     // Run performance tests
@@ -918,6 +1191,7 @@ int main() {
     test_cosine_similarity_performance();
     test_batch_cosine_similarity_performance();
     test_mean_pooling_performance();
+    test_batch_mean_pooling_performance(); // Add batch_mean_pooling performance test
     
     return 0;
 }

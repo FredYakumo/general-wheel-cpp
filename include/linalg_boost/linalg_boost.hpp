@@ -397,4 +397,100 @@ namespace wheel::linalg_boost {
 
         return result;
     }
+
+    /**
+     * @brief Batch mean pooling for a matrix (batch of vectors)
+     *
+     * Computes the mean pooling vector for each vector in the batch matrix.
+     * For a matrix of size [batch_size x channel_dim x feature_dim], returns a vector of size [batch_size x feature_dim].
+     *
+     * @param matrix Array of batch pointers, where each batch contains channel_dim vectors of feature_dim elements
+     * @param feature_dim Size of each feature vector (inner dimension)
+     * @param channel_dim Number of vectors to average per batch item (middle dimension)
+     * @param batch_size Number of batches to process (outer dimension)
+     * @param results Output array to store batch results (must be pre-allocated with batch_size * feature_dim elements)
+     * @throws std::invalid_argument If feature_dim is zero, channel_dim is zero, or results is null
+     * @note Performance optimized using hardware instruction sets when available
+     */
+    inline void batch_mean_pooling(const float ***matrix, size_t feature_dim, size_t channel_dim, size_t batch_size, float **results) {
+        if (feature_dim == 0)
+            throw std::invalid_argument("batch_mean_pooling: feature dimension must > 0");
+        if (channel_dim == 0)
+            throw std::invalid_argument("batch_mean_pooling: channel dimension must > 0");
+        if (results == nullptr)
+            throw std::invalid_argument("batch_mean_pooling: results pointer cannot be null");
+
+#ifdef __aarch64__
+#ifdef LINALG_USE_ASM
+        detail::batch_mean_pooling_asm_aarch64(matrix, feature_dim, channel_dim, batch_size, results);
+#else
+        detail::batch_mean_pooling_neon(matrix, feature_dim, channel_dim, batch_size, results);
+#endif
+#else
+        detail::batch_mean_pooling_scalar(matrix, feature_dim, channel_dim, batch_size, results);
+#endif
+    }
+
+    /**
+     * @brief Batch mean pooling for a matrix (batch of vectors)
+     *
+     * Computes the mean pooling vector for each vector in the batch matrix.
+     * For a 3D vector of size [batch_size][channel_dim][feature_dim], returns a 2D vector of size [batch_size][feature_dim].
+     *
+     * @param matrix 3D vector representing batches of channels of feature vectors
+     * @return 2D vector containing the mean-pooled results for each batch
+     * @throws std::invalid_argument If matrix is empty or has inconsistent dimensions
+     * @note Wraps the pointer-based implementation with hardware-specific optimizations
+     */
+    inline std::vector<std::vector<float>> batch_mean_pooling(const std::vector<std::vector<std::vector<float>>> &matrix) {
+        if (matrix.empty())
+            throw std::invalid_argument("batch_mean_pooling: input matrix must not be empty");
+        
+        const size_t batch_size = matrix.size();
+        const size_t channel_dim = matrix[0].size();
+        
+        if (channel_dim == 0)
+            throw std::invalid_argument("batch_mean_pooling: channel dimension must > 0");
+            
+        const size_t feature_dim = matrix[0][0].size();
+        
+        if (feature_dim == 0)
+            throw std::invalid_argument("batch_mean_pooling: feature dimension must > 0");
+
+        // Verify all dimensions are consistent
+        for (const auto &batch : matrix) {
+            if (batch.size() != channel_dim)
+                throw std::invalid_argument("batch_mean_pooling: all batches must have the same channel dimension");
+                
+            for (const auto &channel : batch) {
+                if (channel.size() != feature_dim)
+                    throw std::invalid_argument("batch_mean_pooling: all vectors must have the same feature dimension");
+            }
+        }
+
+        // Prepare array of batch pointers
+        std::vector<const float **> batch_ptrs(batch_size);
+        std::vector<std::vector<const float *>> channel_ptrs(batch_size);
+        
+        for (size_t b = 0; b < batch_size; ++b) {
+            channel_ptrs[b].resize(channel_dim);
+            for (size_t c = 0; c < channel_dim; ++c) {
+                channel_ptrs[b][c] = matrix[b][c].data();
+            }
+            batch_ptrs[b] = channel_ptrs[b].data();
+        }
+
+        // Prepare result vectors
+        std::vector<std::vector<float>> results(batch_size, std::vector<float>(feature_dim, 0.0f));
+        std::vector<float *> result_ptrs(batch_size);
+        
+        for (size_t b = 0; b < batch_size; ++b) {
+            result_ptrs[b] = results[b].data();
+        }
+
+        // Call the pointer-based implementation with optimizations
+        batch_mean_pooling(batch_ptrs.data(), feature_dim, channel_dim, batch_size, result_ptrs.data());
+
+        return results;
+    }
 } // namespace wheel::linalg_boost
