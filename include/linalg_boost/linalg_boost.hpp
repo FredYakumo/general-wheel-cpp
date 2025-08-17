@@ -21,7 +21,7 @@ namespace wheel::linalg_boost {
         if (size == 0)
             throw std::invalid_argument("dot_product: size must > 0");
 
-#ifdef __aarch64__
+#ifdef LINALG_USE_NEON
         return detail::dot_product_neon(a, b, size);
 #else
         return detail::dot_product_scalar(a, b, size);
@@ -64,7 +64,7 @@ namespace wheel::linalg_boost {
             throw std::invalid_argument("batch_dot_product: results pointer cannot be null");
 
         for (size_t k = 0; k < batch_size; ++k) {
-#ifdef __aarch64__
+#ifdef LINALG_USE_NEON
             results[k] = detail::dot_product_neon(a[k], b, n);
 #else
             results[k] = detail::dot_product_scalar(a[k], b, n);
@@ -122,7 +122,7 @@ namespace wheel::linalg_boost {
     inline float cosine_similarity(const float *a, const float *b, size_t size) {
         if (size == 0)
             throw std::invalid_argument("cosine_similarity: size must > 0");
-#ifdef __aarch64__
+#ifdef LINALG_USE_NEON
         return detail::cosine_similarity_neon(a, b, size);
 #else
         return detail::cosine_similarity_scalar(a, b, size);
@@ -169,12 +169,12 @@ namespace wheel::linalg_boost {
         if (results == nullptr)
             throw std::invalid_argument("batch_cosine_similarity: results pointer cannot be null");
 
-#ifdef __aarch64__
+#ifdef LINALG_USE_NEON
         detail::batch_cosine_similarity_neon(a, b, n, batch_size, results);
         return;
 #else
         detail::batch_cosine_similarity_scalar(a, b, n, batch_size, results);
-#endif // __aarch64__
+#endif // LINALG_USE_NEON
     }
 
     /**
@@ -330,7 +330,7 @@ namespace wheel::linalg_boost {
         if (result == nullptr)
             throw std::invalid_argument("mean_pooling: result pointer cannot be null");
 
-#ifdef __aarch64__
+#ifdef LINALG_USE_NEON
         detail::mean_pooling_neon(vectors, n, num_vectors, result);
 #else
         detail::mean_pooling_scalar(vectors, n, num_vectors, result);
@@ -390,8 +390,8 @@ namespace wheel::linalg_boost {
      * @throws std::invalid_argument If feature_dim is zero, channel_dim is zero, or results is null
      * @note Performance optimized using hardware instruction sets when available
      */
-    inline void batch_channel_mean_pooling(const float ***matrix, size_t feature_dim, size_t channel_dim, size_t batch_size,
-                                   float **results) {
+    inline void batch_channel_mean_pooling(const float ***matrix, size_t feature_dim, size_t channel_dim,
+                                           size_t batch_size, float **results) {
         if (feature_dim == 0)
             throw std::invalid_argument("batch_mean_pooling: feature dimension must > 0");
         if (channel_dim == 0)
@@ -399,7 +399,7 @@ namespace wheel::linalg_boost {
         if (results == nullptr)
             throw std::invalid_argument("batch_mean_pooling: results pointer cannot be null");
 
-#ifdef __aarch64__
+#ifdef LINALG_USE_NEON
         detail::batch_channel_mean_pooling_neon(matrix, feature_dim, channel_dim, batch_size, results);
 #else
         detail::batch_channel_mean_pooling_scalar(matrix, feature_dim, channel_dim, batch_size, results);
@@ -470,7 +470,7 @@ namespace wheel::linalg_boost {
 
         return results;
     }
-    
+
     /**
      * @brief Batch mean pooling across feature dimension
      *
@@ -484,13 +484,14 @@ namespace wheel::linalg_boost {
      * @throws std::invalid_argument If feature_dim is zero or results is null
      * @note Performance optimized using hardware instruction sets when available
      */
-    inline void batch_feature_mean_pooling(const float **matrix, size_t feature_dim, size_t batch_size, float *results) {
+    inline void batch_feature_mean_pooling(const float **matrix, size_t feature_dim, size_t batch_size,
+                                           float *results) {
         if (feature_dim == 0)
             throw std::invalid_argument("batch_feature_mean_pooling: feature dimension must > 0");
         if (results == nullptr)
             throw std::invalid_argument("batch_feature_mean_pooling: results pointer cannot be null");
 
-#ifdef __aarch64__
+#ifdef LINALG_USE_NEON
         detail::batch_feature_mean_pooling_neon(matrix, feature_dim, batch_size, results);
 #else
         detail::batch_feature_mean_pooling_scalar(matrix, feature_dim, batch_size, results);
@@ -521,7 +522,8 @@ namespace wheel::linalg_boost {
         // Verify all dimensions are consistent
         for (const auto &batch : matrix) {
             if (batch.size() != feature_dim)
-                throw std::invalid_argument("batch_feature_mean_pooling: all batches must have the same feature dimension");
+                throw std::invalid_argument(
+                    "batch_feature_mean_pooling: all batches must have the same feature dimension");
         }
 
         // Prepare array of batch pointers
