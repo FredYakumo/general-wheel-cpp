@@ -328,4 +328,73 @@ namespace wheel::linalg_boost {
 
         return {indices, scores};
     }
+
+    /**
+     * @brief Calculate mean pooling of multiple vectors
+     *
+     * Computes the element-wise average of multiple input vectors.
+     *
+     * @param vectors Array of vector pointers
+     * @param n Size of each vector
+     * @param num_vectors Number of vectors to average
+     * @param result Output vector to store the result (must be pre-allocated with n elements)
+     * @throws std::invalid_argument If n is zero, num_vectors is zero, or result is null
+     * @note Performance optimized using hardware instruction sets when available
+     */
+    inline void mean_pooling(const float **vectors, size_t n, size_t num_vectors, float *result) {
+        if (n == 0)
+            throw std::invalid_argument("mean_pooling: vector size must > 0");
+        if (num_vectors == 0)
+            throw std::invalid_argument("mean_pooling: number of vectors must > 0");
+        if (result == nullptr)
+            throw std::invalid_argument("mean_pooling: result pointer cannot be null");
+
+#ifdef __aarch64__
+#ifdef LINALG_USE_ASM
+        detail::mean_pooling_asm_aarch64(vectors, n, num_vectors, result);
+#else
+        detail::mean_pooling_neon(vectors, n, num_vectors, result);
+#endif
+#else
+        detail::mean_pooling_scalar(vectors, n, num_vectors, result);
+#endif
+    }
+
+    /**
+     * @brief Calculate mean pooling of multiple vectors
+     *
+     * Computes the element-wise average of multiple input vectors.
+     *
+     * @param vectors Vector of input vectors
+     * @return Vector containing the mean-pooled result
+     * @throws std::invalid_argument If vectors are empty or have inconsistent sizes
+     * @note Wraps the pointer-based implementation
+     */
+    inline std::vector<float> mean_pooling(const std::vector<std::vector<float>> &vectors) {
+        if (vectors.empty())
+            throw std::invalid_argument("mean_pooling: input vector must not be empty");
+
+        const size_t vec_size = vectors[0].size();
+        if (vec_size == 0)
+            throw std::invalid_argument("mean_pooling: vectors must not be empty");
+
+        // Verify all vectors have the same size
+        for (const auto &vec : vectors) {
+            if (vec.size() != vec_size)
+                throw std::invalid_argument("mean_pooling: all vectors must have the same size");
+        }
+
+        // Prepare array of pointers
+        std::vector<const float *> vec_ptrs(vectors.size());
+        for (size_t i = 0; i < vectors.size(); ++i) {
+            vec_ptrs[i] = vectors[i].data();
+        }
+
+        // Prepare result vector
+        std::vector<float> result(vec_size, 0.0f);
+
+        mean_pooling(vec_ptrs.data(), vec_size, vectors.size(), result.data());
+
+        return result;
+    }
 } // namespace wheel::linalg_boost

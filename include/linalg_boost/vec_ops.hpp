@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 
@@ -682,6 +683,149 @@ namespace wheel::linalg_boost::detail {
         }
     }
 #endif // LINALG_USE_ASM
+
+    /**
+     * @brief Optimized NEON implementation of mean pooling
+     *
+     * @param vectors Array of vector pointers
+     * @param n Size of each vector
+     * @param num_vectors Number of vectors to average
+     * @param result Output vector to store the result
+     */
+    inline void mean_pooling_neon(const float **vectors, size_t n, size_t num_vectors, float *result) {
+        for (size_t i = 0; i + 4 <= n; i += 4) {
+            vst1q_f32(result + i, vdupq_n_f32(0.0f));
+        }
+        for (size_t i = (n & ~size_t(3)); i < n; ++i) {
+            result[i] = 0.0f;
+        }
+
+        // Sum all vectors
+        for (size_t k = 0; k < num_vectors; ++k) {
+            const float *vec = vectors[k];
+            for (size_t i = 0; i + 4 <= n; i += 4) {
+                float32x4_t current_sum = vld1q_f32(result + i);
+                float32x4_t vec_chunk = vld1q_f32(vec + i);
+                vst1q_f32(result + i, vaddq_f32(current_sum, vec_chunk));
+            }
+
+            // remaining
+            for (size_t i = (n & ~size_t(3)); i < n; ++i) {
+                result[i] += vec[i];
+            }
+        }
+
+        // scale by 1/num_vectors
+        float32x4_t scale_vec = vdupq_n_f32(1.0f / static_cast<float>(num_vectors));
+        for (size_t i = 0; i + 4 <= n; i += 4) {
+            float32x4_t sum_vec = vld1q_f32(result + i);
+            float32x4_t result_vec = vmulq_f32(sum_vec, scale_vec);
+            vst1q_f32(result + i, result_vec);
+        }
+
+        // scale remaining
+        for (size_t i = (n & ~size_t(3)); i < n; ++i) {
+            result[i] /= static_cast<float>(num_vectors);
+        }
+    }
+
+#ifdef LINALG_USE_ASM
+    /**
+     * @brief Assembly-optimized implementation of mean pooling for AArch64
+     *
+     * @param vectors Array of vector pointers
+     * @param n Size of each vector
+     * @param num_vectors Number of vectors to average
+     * @param result Output vector to store the result
+     */
+    inline void mean_pooling_asm_aarch64(const float **vectors, size_t n, size_t num_vectors, float *result) {
+        const size_t blocks = n / 4;
+        const float scale = 1.0f / static_cast<float>(num_vectors);
+
+        for (size_t i = 0; i < blocks; ++i) {
+            float *res_ptr = result + (i * 4);
+            asm volatile("eor v0.16b, v0.16b, v0.16b           \n" // sum = 0
+                         "st1 {v0.4s}, [%[res_ptr]]            \n" // Store zeros
+                         :
+                         : [res_ptr] "r"(res_ptr)
+                         : "v0", "memory");
+        }
+
+        // Zero remaining
+        for (size_t i = blocks * 4; i < n; ++i) {
+            result[i] = 0.0f;
+        }
+
+        // Sum all vectors
+        for (size_t k = 0; k < num_vectors; ++k) {
+            const float *vec_ptr = vectors[k];
+
+            // Process 4-element blocks
+            for (size_t i = 0; i < blocks; ++i) {
+                size_t offset = i * 4;
+                float *res_ptr = result + offset;
+
+                asm volatile("ld1 {v0.4s}, [%[res_ptr]]            \n" // Load current sum
+                             "ld1 {v1.4s}, [%[vec_ptr]]            \n" // Load vector chunk
+                             "fadd v0.4s, v0.4s, v1.4s             \n" // sum += vec
+                             "st1 {v0.4s}, [%[res_ptr]]            \n" // Store updated sum
+                             :
+                             : [res_ptr] "r"(res_ptr), [vec_ptr] "r"(vec_ptr + offset)
+                             : "v0", "v1", "memory");
+            }
+
+            // Process remaining
+            for (size_t i = blocks * 4; i < n; ++i) {
+                result[i] += vec_ptr[i];
+            }
+        }
+
+        // multiply by scale factor
+        for (size_t i = 0; i < blocks; ++i) {
+            float *res_ptr = result + (i * 4);
+
+            asm volatile("fmov s2, %w[scale]                   \n" // Load scale factor
+                         "dup v2.4s, v2.s[0]                   \n" // Duplicate to all lanes
+                         "ld1 {v0.4s}, [%[res_ptr]]            \n" // Load sum
+                         "fmul v0.4s, v0.4s, v2.4s             \n" // result = sum * scale
+                         "st1 {v0.4s}, [%[res_ptr]]            \n" // Store result
+                         :
+                         : [scale] "r"(scale), [res_ptr] "r"(res_ptr)
+                         : "v0", "v2", "memory");
+        }
+
+        // Scale remaining elements
+        for (size_t i = blocks * 4; i < n; ++i) {
+            result[i] *= scale;
+        }
+    }
+#endif // LINALG_USE_ASM
 #endif // __aarch64__
+
+    /**
+     * @brief Portable scalar implementation of mean pooling
+     *
+     * @param vectors Array of vector pointers
+     * @param n Size of each vector
+     * @param num_vectors Number of vectors to average
+     * @param result Output vector to store the result
+     */
+    inline void mean_pooling_scalar(const float **vectors, size_t n, size_t num_vectors, float *result) {
+        std::fill(result, result + n, 0.0f);
+
+        // Sum all vectors
+        for (size_t k = 0; k < num_vectors; ++k) {
+            const float *vec = vectors[k];
+            for (size_t i = 0; i < n; ++i) {
+                result[i] += vec[i];
+            }
+        }
+
+        // Divide by number of vectors
+        const float scale = 1.0f / static_cast<float>(num_vectors);
+        for (size_t i = 0; i < n; ++i) {
+            result[i] *= scale;
+        }
+    }
 
 } // namespace wheel::linalg_boost::detail

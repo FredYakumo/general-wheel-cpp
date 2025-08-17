@@ -691,17 +691,233 @@ void test_batch_cosine_similarity_performance() {
     }
 }
 
+// Test function for mean pooling
+void test_mean_pooling() {
+    std::cout << "Testing mean pooling function...\n";
+    bool all_passed = true;
+
+    // Test case 1: Simple average of two vectors
+    {
+        std::vector<std::vector<float>> vectors = {
+            {1.0f, 2.0f, 3.0f, 4.0f},
+            {5.0f, 6.0f, 7.0f, 8.0f}
+        };
+        
+        std::vector<float> result = wheel::linalg_boost::mean_pooling(vectors);
+        
+        std::vector<float> expected = {3.0f, 4.0f, 5.0f, 6.0f}; // Average of the two vectors
+        
+        std::cout << "  Case 1: ";
+        for (size_t i = 0; i < result.size(); ++i) {
+            std::cout << result[i] << " ";
+            if (!almost_equal(result[i], expected[i])) {
+                std::cout << "\n  FAILED: Test case 1 at index " << i 
+                          << ", got " << result[i] << ", expected " << expected[i] << "\n";
+                all_passed = false;
+            }
+        }
+        std::cout << "\n";
+    }
+
+    // Test case 2: Average of multiple vectors
+    {
+        std::vector<std::vector<float>> vectors = {
+            {1.0f, 1.0f, 1.0f},
+            {2.0f, 2.0f, 2.0f},
+            {3.0f, 3.0f, 3.0f},
+            {4.0f, 4.0f, 4.0f}
+        };
+        
+        std::vector<float> result = wheel::linalg_boost::mean_pooling(vectors);
+        
+        std::vector<float> expected = {2.5f, 2.5f, 2.5f}; // (1+2+3+4)/4 = 2.5
+        
+        std::cout << "  Case 2: ";
+        for (size_t i = 0; i < result.size(); ++i) {
+            std::cout << result[i] << " ";
+            if (!almost_equal(result[i], expected[i])) {
+                std::cout << "\n  FAILED: Test case 2 at index " << i 
+                          << ", got " << result[i] << ", expected " << expected[i] << "\n";
+                all_passed = false;
+            }
+        }
+        std::cout << "\n";
+    }
+
+    // Test case 3: Handling longer vectors (to test SIMD optimization)
+    {
+        const size_t vector_size = 16;
+        std::vector<std::vector<float>> vectors;
+        
+        // Create 8 vectors with increasing values
+        for (size_t k = 0; k < 8; ++k) {
+            std::vector<float> vec(vector_size, static_cast<float>(k + 1));
+            vectors.push_back(vec);
+        }
+        
+        std::vector<float> result = wheel::linalg_boost::mean_pooling(vectors);
+        
+        // Expected: average is (1+2+3+4+5+6+7+8)/8 = 4.5
+        std::vector<float> expected(vector_size, 4.5f);
+        
+        std::cout << "  Case 3: ";
+        bool case_passed = true;
+        for (size_t i = 0; i < result.size(); ++i) {
+            if (!almost_equal(result[i], expected[i])) {
+                std::cout << "\n  FAILED: Test case 3 at index " << i 
+                          << ", got " << result[i] << ", expected " << expected[i] << "\n";
+                all_passed = false;
+                case_passed = false;
+                break;
+            }
+        }
+        std::cout << (case_passed ? "All elements match expected value 4.5\n" : "\n");
+    }
+
+    // Test case 4: Different values at different positions
+    {
+        std::vector<std::vector<float>> vectors = {
+            {1.0f, 10.0f, 100.0f},
+            {3.0f, 30.0f, 300.0f},
+            {5.0f, 50.0f, 500.0f}
+        };
+        
+        std::vector<float> result = wheel::linalg_boost::mean_pooling(vectors);
+        
+        std::vector<float> expected = {3.0f, 30.0f, 300.0f}; // Position-wise average
+        
+        std::cout << "  Case 4: ";
+        for (size_t i = 0; i < result.size(); ++i) {
+            std::cout << result[i] << " ";
+            if (!almost_equal(result[i], expected[i])) {
+                std::cout << "\n  FAILED: Test case 4 at index " << i 
+                          << ", got " << result[i] << ", expected " << expected[i] << "\n";
+                all_passed = false;
+            }
+        }
+        std::cout << "\n";
+    }
+
+    if (all_passed) {
+        std::cout << "Mean pooling tests passed!\n\n";
+    } else {
+        std::cout << "Some mean pooling tests failed!\n\n";
+    }
+}
+
+// Performance test for mean pooling function
+void test_mean_pooling_performance() {
+    std::cout << "\n---------- Mean Pooling Performance Test ----------\n";
+    
+    // Test different vector sizes
+    const std::vector<size_t> sizes = {1000, 10000, 100000};
+    const std::vector<size_t> num_vectors_list = {2, 10, 50};
+    const int num_iterations = 50; // Number of iterations for each test
+    const int num_epochs = 5;      // Number of epochs for averaging
+    
+    for (auto size : sizes) {
+        for (auto num_vectors : num_vectors_list) {
+            std::cout << "\nVector size: " << size << ", Number of vectors: " << num_vectors << "\n";
+            
+            // Generate random vectors
+            std::vector<std::vector<float>> vectors;
+            std::vector<const float*> vec_ptrs(num_vectors);
+            
+            for (size_t i = 0; i < num_vectors; ++i) {
+                vectors.push_back(generate_random_vector(size));
+                vec_ptrs[i] = vectors[i].data();
+            }
+            
+            // Prepare result vector for optimized implementation
+            std::vector<float> result_optimized(size);
+            
+            // Prepare result vector for scalar implementation
+            std::vector<float> result_scalar(size);
+            
+            // Variables for timing
+            double total_duration_optimized = 0.0;
+            double total_duration_scalar = 0.0;
+            double min_duration_optimized = std::numeric_limits<double>::max();
+            double min_duration_scalar = std::numeric_limits<double>::max();
+            double max_duration_optimized = 0.0;
+            double max_duration_scalar = 0.0;
+            
+            // Run multiple epochs for more accurate measurements
+            for (int epoch = 0; epoch < num_epochs; ++epoch) {
+                // Measure optimized implementation
+                auto start_optimized = std::chrono::high_resolution_clock::now();
+                for (int i = 0; i < num_iterations; ++i) {
+                    wheel::linalg_boost::mean_pooling(vec_ptrs.data(), size, num_vectors, result_optimized.data());
+                }
+                auto end_optimized = std::chrono::high_resolution_clock::now();
+                auto duration_optimized = std::chrono::duration_cast<std::chrono::microseconds>(
+                    end_optimized - start_optimized).count() / static_cast<double>(num_iterations);
+                
+                total_duration_optimized += duration_optimized;
+                min_duration_optimized = std::min(min_duration_optimized, duration_optimized);
+                max_duration_optimized = std::max(max_duration_optimized, duration_optimized);
+                
+                // Measure scalar implementation
+                auto start_scalar = std::chrono::high_resolution_clock::now();
+                for (int i = 0; i < num_iterations; ++i) {
+                    wheel::linalg_boost::detail::mean_pooling_scalar(vec_ptrs.data(), size, num_vectors, result_scalar.data());
+                }
+                auto end_scalar = std::chrono::high_resolution_clock::now();
+                auto duration_scalar = std::chrono::duration_cast<std::chrono::microseconds>(
+                    end_scalar - start_scalar).count() / static_cast<double>(num_iterations);
+                
+                total_duration_scalar += duration_scalar;
+                min_duration_scalar = std::min(min_duration_scalar, duration_scalar);
+                max_duration_scalar = std::max(max_duration_scalar, duration_scalar);
+                
+                // Print progress
+                std::cout << "  Epoch " << (epoch + 1) << "/" << num_epochs << " completed\r" << std::flush;
+            }
+            
+            // Calculate average durations
+            double avg_duration_optimized = total_duration_optimized / num_epochs;
+            double avg_duration_scalar = total_duration_scalar / num_epochs;
+            
+            // Calculate speedup
+            double speedup = avg_duration_scalar / avg_duration_optimized;
+            
+            // Print results
+            std::cout << "\n  Optimized implementation: " << std::fixed << std::setprecision(2) 
+                      << "min = " << min_duration_optimized << " µs, "
+                      << "max = " << max_duration_optimized << " µs, "
+                      << "avg = " << avg_duration_optimized << " µs\n";
+            std::cout << "  Scalar implementation: " << std::fixed << std::setprecision(2) 
+                      << "min = " << min_duration_scalar << " µs, "
+                      << "max = " << max_duration_scalar << " µs, "
+                      << "avg = " << avg_duration_scalar << " µs\n";
+            std::cout << "  Speedup: " << std::fixed << std::setprecision(2) << speedup << "x\n";
+            
+            // Verify results match between optimized and scalar implementations
+            bool results_match = true;
+            for (size_t i = 0; i < size; ++i) {
+                if (!almost_equal(result_optimized[i], result_scalar[i])) {
+                    results_match = false;
+                    break;
+                }
+            }
+            std::cout << "  Results match: " << (results_match ? "Yes" : "No") << "\n";
+        }
+    }
+}
+
 int main() {
     // Run all tests
     test_dot_product();
     test_cosine_similarity();
     test_batch_cosine_similarity();
+    test_mean_pooling();
     test_markdown_parsing();
     
     // Run performance tests
     test_dot_product_performance();
     test_cosine_similarity_performance();
     test_batch_cosine_similarity_performance();
+    test_mean_pooling_performance();
     
     return 0;
 }
