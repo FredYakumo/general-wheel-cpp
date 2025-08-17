@@ -5,13 +5,13 @@
 #include <cstddef>
 #include <numeric>
 
-#ifdef __aarch64__
+#ifdef LINALG_USE_NEON
 #include <arm_neon.h>
 #endif
 
 namespace wheel::linalg_boost::detail {
 
-#ifdef __aarch64__
+#ifdef LINALG_USE_NEON
     /**
      * @brief NEON-optimized implementation of dot product
      *
@@ -21,37 +21,8 @@ namespace wheel::linalg_boost::detail {
      * @return Dot product result
      */
     inline float dot_product_neon(const float *a, const float *b, size_t n) {
-#ifdef LINALG_USE_ASM
-        // Use the assembly implementation when LINALG_USE_ASM is defined
-        size_t blocks = n / 4; // 4 floats per iteration
-        float sum = 0.0f;
-
-        if (blocks) {
-            const float *pa = a;
-            const float *pb = b;
-            asm volatile("eor v0.16b, v0.16b, v0.16b           \n" // acc = 0
-                         "1:                                     \n"
-                         "ld1 {v1.4s}, [%[pa]], #16             \n"
-                         "ld1 {v2.4s}, [%[pb]], #16             \n"
-                         "fmla v0.4s, v1.4s, v2.4s              \n"
-                         "subs %[blocks], %[blocks], #1         \n"
-                         "b.ne 1b                                \n"
-                         // horizontal reduce v0
-                         "faddp v0.4s, v0.4s, v0.4s             \n" // [a0+a1, a2+a3, a0+a1, a2+a3]
-                         "faddp v0.2s, v0.2s, v0.2s             \n" // [sum, sum, ..., ...]
-                         "fmov %w[sum], s0                       \n"
-                         : [sum] "=&r"(sum), [pa] "+r"(pa), [pb] "+r"(pb), [blocks] "+r"(blocks)
-                         :
-                         : "v0", "v1", "v2", "cc", "memory");
-        }
-
-        // Process remaining elements
-        for (size_t i = (n & ~size_t(3)); i < n; ++i) {
-            sum += a[i] * b[i];
-        }
-        return sum;
-#else
-        // Use the NEON intrinsics implementation
+#ifndef LINALG_USE_ASM
+        // NEON intrinsics
         size_t i = 0;
 
         float32x4_t acc0 = vdupq_n_f32(0.0f);
@@ -84,10 +55,39 @@ namespace wheel::linalg_boost::detail {
         for (; i < n; ++i)
             sum += a[i] * b[i];
         return sum;
-#endif // __LINALG_USE_ASM__
+#else
+        // NEON assembly
+        size_t blocks = n / 4; // 4 floats per iteration
+        float sum = 0.0f;
+
+        if (blocks) {
+            const float *pa = a;
+            const float *pb = b;
+            asm volatile("eor v0.16b, v0.16b, v0.16b           \n" // acc = 0
+                         "1:                                     \n"
+                         "ld1 {v1.4s}, [%[pa]], #16             \n"
+                         "ld1 {v2.4s}, [%[pb]], #16             \n"
+                         "fmla v0.4s, v1.4s, v2.4s              \n"
+                         "subs %[blocks], %[blocks], #1         \n"
+                         "b.ne 1b                                \n"
+                         // horizontal reduce v0
+                         "faddp v0.4s, v0.4s, v0.4s             \n" // [a0+a1, a2+a3, a0+a1, a2+a3]
+                         "faddp v0.2s, v0.2s, v0.2s             \n" // [sum, sum, ..., ...]
+                         "fmov %w[sum], s0                       \n"
+                         : [sum] "=&r"(sum), [pa] "+r"(pa), [pb] "+r"(pb), [blocks] "+r"(blocks)
+                         :
+                         : "v0", "v1", "v2", "cc", "memory");
+        }
+
+        // Process remaining elements
+        for (size_t i = (n & ~size_t(3)); i < n; ++i) {
+            sum += a[i] * b[i];
+        }
+        return sum;
+#endif // LINALG_USE_NEON
     }
 
-#endif // __aarch64__
+#endif // LINALG_USE_ASM
 
     /**
      * @brief Portable scalar implementation of dot product
@@ -104,7 +104,7 @@ namespace wheel::linalg_boost::detail {
         return acc;
     }
 
-#ifdef __aarch64__
+#ifdef LINALG_USE_NEON
     /**
      * @brief NEON-optimized implementation of cosine similarity
      *
@@ -115,59 +115,8 @@ namespace wheel::linalg_boost::detail {
      * @note Returns 0 when either vector is a zero vector
      */
     inline float cosine_similarity_neon(const float *a, const float *b, size_t n) {
-#ifdef LINALG_USE_ASM
-        // Use the assembly implementation when LINALG_USE_ASM is defined
-        size_t blocks = n / 4; // 4 floats per iteration
-        float dot = 0.0f;
-        float aa = 0.0f; // Sum of squares for vector a
-        float bb = 0.0f; // Sum of squares for vector b
-
-        if (blocks) {
-            const float *pa = a;
-            const float *pb = b;
-            asm volatile(
-                "eor v0.16b, v0.16b, v0.16b           \n" // dot_product = 0
-                "eor v3.16b, v3.16b, v3.16b           \n" // aa = 0
-                "eor v4.16b, v4.16b, v4.16b           \n" // bb = 0
-
-                "1:                                     \n"
-                "ld1 {v1.4s}, [%[pa]], #16             \n" // Load 4 floats from a
-                "ld1 {v2.4s}, [%[pb]], #16             \n" // Load 4 floats from b
-                "fmla v0.4s, v1.4s, v2.4s              \n" // dot += a * b
-                "fmla v3.4s, v1.4s, v1.4s              \n" // aa += a * a
-                "fmla v4.4s, v2.4s, v2.4s              \n" // bb += b * b
-                "subs %[blocks], %[blocks], #1         \n"
-                "b.ne 1b                                \n"
-
-                // horizontal reduce v0, v3, v4
-                "faddp v0.4s, v0.4s, v0.4s             \n" // Reduce dot product
-                "faddp v0.2s, v0.2s, v0.2s             \n"
-                "fmov %w[dot], s0                       \n"
-                "faddp v3.4s, v3.4s, v3.4s             \n" // Reduce aa
-                "faddp v3.2s, v3.2s, v3.2s             \n"
-                "fmov %w[aa], s3                        \n"
-                "faddp v4.4s, v4.4s, v4.4s             \n" // Reduce bb
-                "faddp v4.2s, v4.2s, v4.2s             \n"
-                "fmov %w[bb], s4                        \n"
-                : [dot] "=&r"(dot), [aa] "=&r"(aa), [bb] "=&r"(bb), [pa] "+r"(pa), [pb] "+r"(pb), [blocks] "+r"(blocks)
-                :
-                : "v0", "v1", "v2", "v3", "v4", "cc", "memory");
-        }
-
-        // Process remaining elements
-        for (size_t i = (n & ~size_t(3)); i < n; ++i) {
-            const float ai = a[i], bi = b[i];
-            dot += ai * bi;
-            aa += ai * ai;
-            bb += bi * bi;
-        }
-
-        const float denom = std::sqrt(aa) * std::sqrt(bb);
-        if (denom == 0.0f)
-            return 0.0f; // Return 0 when either vector is a zero vector
-        return dot / denom;
-#else
-        // Use the NEON intrinsics implementation
+#ifndef LINALG_USE_ASM
+        // NEON intrinsics impl
         size_t i = 0;
 
         float32x4_t dot0 = vdupq_n_f32(0.0f), dot1 = vdupq_n_f32(0.0f);
@@ -220,10 +169,62 @@ namespace wheel::linalg_boost::detail {
         if (denom == 0.0f)
             return 0.0f;
         return dot / denom;
-#endif // __LINALG_USE_ASM__
+#else
+        // NEON assembly
+
+        size_t blocks = n / 4; // 4 floats per iteration
+        float dot = 0.0f;
+        float aa = 0.0f; // Sum of squares for vector a
+        float bb = 0.0f; // Sum of squares for vector b
+
+        if (blocks) {
+            const float *pa = a;
+            const float *pb = b;
+            asm volatile(
+                "eor v0.16b, v0.16b, v0.16b           \n" // dot_product = 0
+                "eor v3.16b, v3.16b, v3.16b           \n" // aa = 0
+                "eor v4.16b, v4.16b, v4.16b           \n" // bb = 0
+
+                "1:                                     \n"
+                "ld1 {v1.4s}, [%[pa]], #16             \n" // Load 4 floats from a
+                "ld1 {v2.4s}, [%[pb]], #16             \n" // Load 4 floats from b
+                "fmla v0.4s, v1.4s, v2.4s              \n" // dot += a * b
+                "fmla v3.4s, v1.4s, v1.4s              \n" // aa += a * a
+                "fmla v4.4s, v2.4s, v2.4s              \n" // bb += b * b
+                "subs %[blocks], %[blocks], #1         \n"
+                "b.ne 1b                                \n"
+
+                // horizontal reduce v0, v3, v4
+                "faddp v0.4s, v0.4s, v0.4s             \n" // Reduce dot product
+                "faddp v0.2s, v0.2s, v0.2s             \n"
+                "fmov %w[dot], s0                       \n"
+                "faddp v3.4s, v3.4s, v3.4s             \n" // Reduce aa
+                "faddp v3.2s, v3.2s, v3.2s             \n"
+                "fmov %w[aa], s3                        \n"
+                "faddp v4.4s, v4.4s, v4.4s             \n" // Reduce bb
+                "faddp v4.2s, v4.2s, v4.2s             \n"
+                "fmov %w[bb], s4                        \n"
+                : [dot] "=&r"(dot), [aa] "=&r"(aa), [bb] "=&r"(bb), [pa] "+r"(pa), [pb] "+r"(pb), [blocks] "+r"(blocks)
+                :
+                : "v0", "v1", "v2", "v3", "v4", "cc", "memory");
+        }
+
+        // Process remaining elements
+        for (size_t i = (n & ~size_t(3)); i < n; ++i) {
+            const float ai = a[i], bi = b[i];
+            dot += ai * bi;
+            aa += ai * ai;
+            bb += bi * bi;
+        }
+
+        const float denom = std::sqrt(aa) * std::sqrt(bb);
+        if (denom == 0.0f)
+            return 0.0f; // Return 0 when either vector is a zero vector
+        return dot / denom;
+#endif // LINALG_USE_ASM
     }
 
-#endif // __aarch64__
+#endif // LINALG_USE_NEON
 
     /**
      * @brief Portable scalar implementation of cosine similarity
@@ -248,7 +249,7 @@ namespace wheel::linalg_boost::detail {
         return dot / denom;
     }
 
-#ifdef __aarch64__
+#ifdef LINALG_USE_NEON
     /**
      * @brief Optimized NEON implementation of batch cosine similarity
      *
@@ -261,8 +262,178 @@ namespace wheel::linalg_boost::detail {
      */
     inline void batch_cosine_similarity_neon(const float **a, const float *b, size_t n, size_t batch_size,
                                              float *results) {
-#ifdef LINALG_USE_ASM
-        // Use the assembly implementation when LINALG_USE_ASM is defined
+#ifndef LINALG_USE_ASM
+        // NEON intrinsics
+
+        // Precompute b's squared sum
+        float32x4_t b0s = vdupq_n_f32(0.0f), b1s = vdupq_n_f32(0.0f);
+        float bb = 0.0f;
+
+        // Load and cache the reference vector elements in advance
+        size_t i = 0;
+        for (; i + 8 <= n; i += 8) {
+            float32x4_t b0v = vld1q_f32(b + i);
+            float32x4_t b1v = vld1q_f32(b + i + 4);
+
+            b0s = vmlaq_f32(b0s, b0v, b0v);
+            b1s = vmlaq_f32(b1s, b1v, b1v);
+        }
+
+        if (i + 4 <= n) {
+            float32x4_t bv = vld1q_f32(b + i);
+            b0s = vmlaq_f32(b0s, bv, bv);
+            i += 4;
+        }
+
+        float32x4_t bsv = vaddq_f32(b0s, b1s);
+        bb = vaddvq_f32(bsv);
+
+        for (; i < n; ++i) {
+            float bi = b[i];
+            bb += bi * bi;
+        }
+
+        if (bb == 0.0f) {
+            // b = zero vector, all similarities are 0
+            for (size_t k = 0; k < batch_size; ++k) {
+                results[k] = 0.0f;
+            }
+            return;
+        }
+
+        const float sqrt_bb = std::sqrt(bb);
+
+        // Process vectors in batches of 4 if possible
+        const size_t batch_step = 4;
+        const size_t aligned_batch_size = (batch_size / batch_step) * batch_step;
+
+        // Process main batch in groups of 4
+        for (size_t k = 0; k < aligned_batch_size; k += batch_step) {
+            const float *avec0 = a[k];
+            const float *avec1 = a[k + 1];
+            const float *avec2 = a[k + 2];
+            const float *avec3 = a[k + 3];
+
+            float dot[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+            float aa[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+            // Process vector elements in chunks
+            size_t j = 0;
+            for (; j + 4 <= n; j += 4) {
+                // Load reference vector once
+                float32x4_t bv = vld1q_f32(b + j);
+
+                // Process 4 input vectors in parallel
+                float32x4_t av0 = vld1q_f32(avec0 + j);
+                float32x4_t av1 = vld1q_f32(avec1 + j);
+                float32x4_t av2 = vld1q_f32(avec2 + j);
+                float32x4_t av3 = vld1q_f32(avec3 + j);
+
+                // Calculate dot products
+                float32x4_t dot0 = vmulq_f32(av0, bv);
+                float32x4_t dot1 = vmulq_f32(av1, bv);
+                float32x4_t dot2 = vmulq_f32(av2, bv);
+                float32x4_t dot3 = vmulq_f32(av3, bv);
+
+                // Calculate squared sums
+                float32x4_t as0 = vmulq_f32(av0, av0);
+                float32x4_t as1 = vmulq_f32(av1, av1);
+                float32x4_t as2 = vmulq_f32(av2, av2);
+                float32x4_t as3 = vmulq_f32(av3, av3);
+
+                // Horizontal sum accumulation
+                dot[0] += vaddvq_f32(dot0);
+                dot[1] += vaddvq_f32(dot1);
+                dot[2] += vaddvq_f32(dot2);
+                dot[3] += vaddvq_f32(dot3);
+
+                aa[0] += vaddvq_f32(as0);
+                aa[1] += vaddvq_f32(as1);
+                aa[2] += vaddvq_f32(as2);
+                aa[3] += vaddvq_f32(as3);
+            }
+
+            // Process remaining elements
+            for (; j < n; ++j) {
+                const float bj = b[j];
+
+                const float a0j = avec0[j];
+                const float a1j = avec1[j];
+                const float a2j = avec2[j];
+                const float a3j = avec3[j];
+
+                dot[0] += a0j * bj;
+                dot[1] += a1j * bj;
+                dot[2] += a2j * bj;
+                dot[3] += a3j * bj;
+
+                aa[0] += a0j * a0j;
+                aa[1] += a1j * a1j;
+                aa[2] += a2j * a2j;
+                aa[3] += a3j * a3j;
+            }
+
+            // Calculate final results
+            for (size_t idx = 0; idx < batch_step; ++idx) {
+                if (aa[idx] == 0.0f) {
+                    results[k + idx] = 0.0f; // a is a zero vector
+                } else {
+                    results[k + idx] = dot[idx] / (std::sqrt(aa[idx]) * sqrt_bb);
+                }
+            }
+        }
+
+        // Process remaining vectors individually
+        for (size_t k = aligned_batch_size; k < batch_size; ++k) {
+            const float *avec = a[k];
+            float32x4_t dot0 = vdupq_n_f32(0.0f), dot1 = vdupq_n_f32(0.0f);
+            float32x4_t a0s = vdupq_n_f32(0.0f), a1s = vdupq_n_f32(0.0f);
+
+            i = 0;
+            for (; i + 8 <= n; i += 8) {
+                float32x4_t a0v = vld1q_f32(avec + i);
+                float32x4_t b0v = vld1q_f32(b + i);
+                float32x4_t a1v = vld1q_f32(avec + i + 4);
+                float32x4_t b1v = vld1q_f32(b + i + 4);
+
+                dot0 = vmlaq_f32(dot0, a0v, b0v);
+                dot1 = vmlaq_f32(dot1, a1v, b1v);
+
+                a0s = vmlaq_f32(a0s, a0v, a0v);
+                a1s = vmlaq_f32(a1s, a1v, a1v);
+            }
+
+            if (i + 4 <= n) {
+                float32x4_t av = vld1q_f32(avec + i);
+                float32x4_t bv = vld1q_f32(b + i);
+
+                dot0 = vmlaq_f32(dot0, av, bv);
+                a0s = vmlaq_f32(a0s, av, av);
+
+                i += 4;
+            }
+
+            float32x4_t dotv = vaddq_f32(dot0, dot1);
+            float32x4_t asv = vaddq_f32(a0s, a1s);
+
+            float dot = vaddvq_f32(dotv);
+            float aa = vaddvq_f32(asv);
+
+            for (; i < n; ++i) {
+                float ai = avec[i], bi = b[i];
+                dot += ai * bi;
+                aa += ai * ai;
+            }
+
+            if (aa == 0.0f) {
+                results[k] = 0.0f; // a is a zero vector
+            } else {
+                results[k] = dot / (std::sqrt(aa) * sqrt_bb);
+            }
+        }
+#else
+        // NEON assembly
+
         // Precompute b's squared sum
         size_t blocks = n / 4; // 4 floats per iteration
         float bb = 0.0f;       // Sum of squares for vector b
@@ -439,178 +610,10 @@ namespace wheel::linalg_boost::detail {
                 results[k] = dot / (std::sqrt(aa) * sqrt_bb);
             }
         }
-#else
-        // Use the NEON intrinsics implementation
-        // Precompute b's squared sum using NEON
-        float32x4_t b0s = vdupq_n_f32(0.0f), b1s = vdupq_n_f32(0.0f);
-        float bb = 0.0f;
-
-        // Load and cache the reference vector elements in advance
-        size_t i = 0;
-        for (; i + 8 <= n; i += 8) {
-            float32x4_t b0v = vld1q_f32(b + i);
-            float32x4_t b1v = vld1q_f32(b + i + 4);
-
-            b0s = vmlaq_f32(b0s, b0v, b0v);
-            b1s = vmlaq_f32(b1s, b1v, b1v);
-        }
-
-        if (i + 4 <= n) {
-            float32x4_t bv = vld1q_f32(b + i);
-            b0s = vmlaq_f32(b0s, bv, bv);
-            i += 4;
-        }
-
-        float32x4_t bsv = vaddq_f32(b0s, b1s);
-        bb = vaddvq_f32(bsv);
-
-        for (; i < n; ++i) {
-            float bi = b[i];
-            bb += bi * bi;
-        }
-
-        if (bb == 0.0f) {
-            // b = zero vector, all similarities are 0
-            for (size_t k = 0; k < batch_size; ++k) {
-                results[k] = 0.0f;
-            }
-            return;
-        }
-
-        const float sqrt_bb = std::sqrt(bb);
-
-        // Process vectors in batches of 4 if possible
-        const size_t batch_step = 4;
-        const size_t aligned_batch_size = (batch_size / batch_step) * batch_step;
-
-        // Process main batch in groups of 4
-        for (size_t k = 0; k < aligned_batch_size; k += batch_step) {
-            const float *avec0 = a[k];
-            const float *avec1 = a[k + 1];
-            const float *avec2 = a[k + 2];
-            const float *avec3 = a[k + 3];
-
-            float dot[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-            float aa[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-
-            // Process vector elements in chunks
-            size_t j = 0;
-            for (; j + 4 <= n; j += 4) {
-                // Load reference vector once
-                float32x4_t bv = vld1q_f32(b + j);
-
-                // Process 4 input vectors in parallel
-                float32x4_t av0 = vld1q_f32(avec0 + j);
-                float32x4_t av1 = vld1q_f32(avec1 + j);
-                float32x4_t av2 = vld1q_f32(avec2 + j);
-                float32x4_t av3 = vld1q_f32(avec3 + j);
-
-                // Calculate dot products
-                float32x4_t dot0 = vmulq_f32(av0, bv);
-                float32x4_t dot1 = vmulq_f32(av1, bv);
-                float32x4_t dot2 = vmulq_f32(av2, bv);
-                float32x4_t dot3 = vmulq_f32(av3, bv);
-
-                // Calculate squared sums
-                float32x4_t as0 = vmulq_f32(av0, av0);
-                float32x4_t as1 = vmulq_f32(av1, av1);
-                float32x4_t as2 = vmulq_f32(av2, av2);
-                float32x4_t as3 = vmulq_f32(av3, av3);
-
-                // Horizontal sum accumulation
-                dot[0] += vaddvq_f32(dot0);
-                dot[1] += vaddvq_f32(dot1);
-                dot[2] += vaddvq_f32(dot2);
-                dot[3] += vaddvq_f32(dot3);
-
-                aa[0] += vaddvq_f32(as0);
-                aa[1] += vaddvq_f32(as1);
-                aa[2] += vaddvq_f32(as2);
-                aa[3] += vaddvq_f32(as3);
-            }
-
-            // Process remaining elements
-            for (; j < n; ++j) {
-                const float bj = b[j];
-
-                const float a0j = avec0[j];
-                const float a1j = avec1[j];
-                const float a2j = avec2[j];
-                const float a3j = avec3[j];
-
-                dot[0] += a0j * bj;
-                dot[1] += a1j * bj;
-                dot[2] += a2j * bj;
-                dot[3] += a3j * bj;
-
-                aa[0] += a0j * a0j;
-                aa[1] += a1j * a1j;
-                aa[2] += a2j * a2j;
-                aa[3] += a3j * a3j;
-            }
-
-            // Calculate final results
-            for (size_t idx = 0; idx < batch_step; ++idx) {
-                if (aa[idx] == 0.0f) {
-                    results[k + idx] = 0.0f; // a is a zero vector
-                } else {
-                    results[k + idx] = dot[idx] / (std::sqrt(aa[idx]) * sqrt_bb);
-                }
-            }
-        }
-
-        // Process remaining vectors individually
-        for (size_t k = aligned_batch_size; k < batch_size; ++k) {
-            const float *avec = a[k];
-            float32x4_t dot0 = vdupq_n_f32(0.0f), dot1 = vdupq_n_f32(0.0f);
-            float32x4_t a0s = vdupq_n_f32(0.0f), a1s = vdupq_n_f32(0.0f);
-
-            i = 0;
-            for (; i + 8 <= n; i += 8) {
-                float32x4_t a0v = vld1q_f32(avec + i);
-                float32x4_t b0v = vld1q_f32(b + i);
-                float32x4_t a1v = vld1q_f32(avec + i + 4);
-                float32x4_t b1v = vld1q_f32(b + i + 4);
-
-                dot0 = vmlaq_f32(dot0, a0v, b0v);
-                dot1 = vmlaq_f32(dot1, a1v, b1v);
-
-                a0s = vmlaq_f32(a0s, a0v, a0v);
-                a1s = vmlaq_f32(a1s, a1v, a1v);
-            }
-
-            if (i + 4 <= n) {
-                float32x4_t av = vld1q_f32(avec + i);
-                float32x4_t bv = vld1q_f32(b + i);
-
-                dot0 = vmlaq_f32(dot0, av, bv);
-                a0s = vmlaq_f32(a0s, av, av);
-
-                i += 4;
-            }
-
-            float32x4_t dotv = vaddq_f32(dot0, dot1);
-            float32x4_t asv = vaddq_f32(a0s, a1s);
-
-            float dot = vaddvq_f32(dotv);
-            float aa = vaddvq_f32(asv);
-
-            for (; i < n; ++i) {
-                float ai = avec[i], bi = b[i];
-                dot += ai * bi;
-                aa += ai * ai;
-            }
-
-            if (aa == 0.0f) {
-                results[k] = 0.0f; // a is a zero vector
-            } else {
-                results[k] = dot / (std::sqrt(aa) * sqrt_bb);
-            }
-        }
-#endif // __LINALG_USE_ASM__
+#endif // LINALG_USE_ASM
     }
 
-#endif // __aarch64__
+#endif // LINALG_USE_NEON
 
     /**
      * @brief Optimized portable scalar implementation of batch cosine similarity
@@ -660,7 +663,7 @@ namespace wheel::linalg_boost::detail {
         }
     }
 
-#ifdef __aarch64__
+#ifdef LINALG_USE_NEON
     /**
      * @brief Optimized NEON implementation of mean pooling
      *
@@ -670,7 +673,43 @@ namespace wheel::linalg_boost::detail {
      * @param result Output vector to store the result
      */
     inline void mean_pooling_neon(const float **vectors, size_t n, size_t num_vectors, float *result) {
-#ifdef LINALG_USE_ASM
+#ifndef LINALG_USE_ASM
+        // NEON intrinsics
+        for (size_t i = 0; i + 4 <= n; i += 4) {
+            vst1q_f32(result + i, vdupq_n_f32(0.0f));
+        }
+        for (size_t i = (n & ~size_t(3)); i < n; ++i) {
+            result[i] = 0.0f;
+        }
+
+        // Sum all vectors
+        for (size_t k = 0; k < num_vectors; ++k) {
+            const float *vec = vectors[k];
+            for (size_t i = 0; i + 4 <= n; i += 4) {
+                float32x4_t current_sum = vld1q_f32(result + i);
+                float32x4_t vec_chunk = vld1q_f32(vec + i);
+                vst1q_f32(result + i, vaddq_f32(current_sum, vec_chunk));
+            }
+
+            // remaining
+            for (size_t i = (n & ~size_t(3)); i < n; ++i) {
+                result[i] += vec[i];
+            }
+        }
+
+        // scale by 1/num_vectors
+        float32x4_t scale_vec = vdupq_n_f32(1.0f / static_cast<float>(num_vectors));
+        for (size_t i = 0; i + 4 <= n; i += 4) {
+            float32x4_t sum_vec = vld1q_f32(result + i);
+            float32x4_t result_vec = vmulq_f32(sum_vec, scale_vec);
+            vst1q_f32(result + i, result_vec);
+        }
+
+        // scale remaining
+        for (size_t i = (n & ~size_t(3)); i < n; ++i) {
+            result[i] /= static_cast<float>(num_vectors);
+        }
+#else
         const size_t blocks = n / 4;
         const float scale = 1.0f / static_cast<float>(num_vectors);
 
@@ -730,45 +769,9 @@ namespace wheel::linalg_boost::detail {
         for (size_t i = blocks * 4; i < n; ++i) {
             result[i] *= scale;
         }
-#else
-        // Use the NEON intrinsics implementation
-        for (size_t i = 0; i + 4 <= n; i += 4) {
-            vst1q_f32(result + i, vdupq_n_f32(0.0f));
-        }
-        for (size_t i = (n & ~size_t(3)); i < n; ++i) {
-            result[i] = 0.0f;
-        }
-
-        // Sum all vectors
-        for (size_t k = 0; k < num_vectors; ++k) {
-            const float *vec = vectors[k];
-            for (size_t i = 0; i + 4 <= n; i += 4) {
-                float32x4_t current_sum = vld1q_f32(result + i);
-                float32x4_t vec_chunk = vld1q_f32(vec + i);
-                vst1q_f32(result + i, vaddq_f32(current_sum, vec_chunk));
-            }
-
-            // remaining
-            for (size_t i = (n & ~size_t(3)); i < n; ++i) {
-                result[i] += vec[i];
-            }
-        }
-
-        // scale by 1/num_vectors
-        float32x4_t scale_vec = vdupq_n_f32(1.0f / static_cast<float>(num_vectors));
-        for (size_t i = 0; i + 4 <= n; i += 4) {
-            float32x4_t sum_vec = vld1q_f32(result + i);
-            float32x4_t result_vec = vmulq_f32(sum_vec, scale_vec);
-            vst1q_f32(result + i, result_vec);
-        }
-
-        // scale remaining
-        for (size_t i = (n & ~size_t(3)); i < n; ++i) {
-            result[i] /= static_cast<float>(num_vectors);
-        }
-#endif // __LINALG_USE_ASM__
+#endif // LINALG_USE_ASM
     }
-#endif // __aarch64__
+#endif // LINALG_USE_NEON
 
     /**
      * @brief Portable scalar implementation of mean pooling
@@ -796,7 +799,7 @@ namespace wheel::linalg_boost::detail {
         }
     }
 
-#ifdef __aarch64__
+#ifdef LINALG_USE_NEON
     /**
      * @brief NEON-optimized implementation of batch mean pooling
      *
@@ -807,9 +810,57 @@ namespace wheel::linalg_boost::detail {
      * @param results Output array to store batch results
      */
     inline void batch_channel_mean_pooling_neon(const float ***matrix, size_t feature_dim, size_t channel_dim,
-                                        size_t batch_size, float **results) {
-#ifdef LINALG_USE_ASM
-        // Use the assembly implementation when LINALG_USE_ASM is defined
+                                                size_t batch_size, float **results) {
+#ifndef LINALG_USE_ASM
+        // NEON intrinsics
+
+        const float scale = 1.0f / static_cast<float>(channel_dim);
+        float32x4_t scale_vec = vdupq_n_f32(scale);
+
+        // Process each
+        for (size_t b = 0; b < batch_size; ++b) {
+            float *result = results[b];
+            const float **batch_vectors = matrix[b];
+
+            for (size_t i = 0; i + 4 <= feature_dim; i += 4) {
+                vst1q_f32(result + i, vdupq_n_f32(0.0f));
+            }
+            for (size_t i = (feature_dim & ~size_t(3)); i < feature_dim; ++i) {
+                result[i] = 0.0f;
+            }
+
+            // sum all vectors
+            for (size_t c = 0; c < channel_dim; ++c) {
+                const float *vec = batch_vectors[c];
+
+                // Process in chunks of 4 floats
+                for (size_t i = 0; i + 4 <= feature_dim; i += 4) {
+                    float32x4_t current_sum = vld1q_f32(result + i);
+                    float32x4_t vec_chunk = vld1q_f32(vec + i);
+                    vst1q_f32(result + i, vaddq_f32(current_sum, vec_chunk));
+                }
+
+                // Process remaining elements
+                for (size_t i = (feature_dim & ~size_t(3)); i < feature_dim; ++i) {
+                    result[i] += vec[i];
+                }
+            }
+
+            // scale the results
+            for (size_t i = 0; i + 4 <= feature_dim; i += 4) {
+                float32x4_t sum_vec = vld1q_f32(result + i);
+                float32x4_t result_vec = vmulq_f32(sum_vec, scale_vec);
+                vst1q_f32(result + i, result_vec);
+            }
+
+            // scale remaining
+            for (size_t i = (feature_dim & ~size_t(3)); i < feature_dim; ++i) {
+                result[i] *= scale;
+            }
+        }
+#else
+        // assembly implementation
+
         const size_t blocks = feature_dim / 4;
         const float scale = 1.0f / static_cast<float>(channel_dim);
 
@@ -876,55 +927,9 @@ namespace wheel::linalg_boost::detail {
                 result[i] *= scale;
             }
         }
-#else
-        // Use the NEON intrinsics implementation
-        const float scale = 1.0f / static_cast<float>(channel_dim);
-        float32x4_t scale_vec = vdupq_n_f32(scale);
-
-        // Process each
-        for (size_t b = 0; b < batch_size; ++b) {
-            float *result = results[b];
-            const float **batch_vectors = matrix[b];
-
-            for (size_t i = 0; i + 4 <= feature_dim; i += 4) {
-                vst1q_f32(result + i, vdupq_n_f32(0.0f));
-            }
-            for (size_t i = (feature_dim & ~size_t(3)); i < feature_dim; ++i) {
-                result[i] = 0.0f;
-            }
-
-            // sum all vectors
-            for (size_t c = 0; c < channel_dim; ++c) {
-                const float *vec = batch_vectors[c];
-
-                // Process in chunks of 4 floats
-                for (size_t i = 0; i + 4 <= feature_dim; i += 4) {
-                    float32x4_t current_sum = vld1q_f32(result + i);
-                    float32x4_t vec_chunk = vld1q_f32(vec + i);
-                    vst1q_f32(result + i, vaddq_f32(current_sum, vec_chunk));
-                }
-
-                // Process remaining elements
-                for (size_t i = (feature_dim & ~size_t(3)); i < feature_dim; ++i) {
-                    result[i] += vec[i];
-                }
-            }
-
-            // scale the results
-            for (size_t i = 0; i + 4 <= feature_dim; i += 4) {
-                float32x4_t sum_vec = vld1q_f32(result + i);
-                float32x4_t result_vec = vmulq_f32(sum_vec, scale_vec);
-                vst1q_f32(result + i, result_vec);
-            }
-
-            // scale remaining
-            for (size_t i = (feature_dim & ~size_t(3)); i < feature_dim; ++i) {
-                result[i] *= scale;
-            }
-        }
-#endif // __LINALG_USE_ASM__
+#endif // LINALG_USE_ASM
     }
-#endif // __aarch64__
+#endif // LINALG_USE_NEON
 
     /**
      * @brief Portable scalar implementation of batch mean pooling
@@ -936,7 +941,7 @@ namespace wheel::linalg_boost::detail {
      * @param results Output array to store batch results
      */
     inline void batch_channel_mean_pooling_scalar(const float ***matrix, size_t feature_dim, size_t channel_dim,
-                                          size_t batch_size, float **results) {
+                                                  size_t batch_size, float **results) {
         const float scale = 1.0f / static_cast<float>(channel_dim);
 
         // Process each batch independently
@@ -958,8 +963,8 @@ namespace wheel::linalg_boost::detail {
             }
         }
     }
-    
-#ifdef __aarch64__
+
+#ifdef LINALG_USE_NEON
     /**
      * @brief NEON-optimized implementation of batch feature mean pooling
      *
@@ -969,177 +974,166 @@ namespace wheel::linalg_boost::detail {
      * @param results Output array to store batch results (must be pre-allocated with batch_size elements)
      */
     inline void batch_feature_mean_pooling_neon(const float **matrix, size_t feature_dim, size_t batch_size,
-                                             float *results) {
-#ifdef LINALG_USE_ASM
-        const float inv_feature_dim = 1.0f / static_cast<float>(feature_dim);
-        const size_t blocks = feature_dim / 4;
+                                                float *results) {
+#ifndef LINALG_USE_ASM
+        // NEON intrinsics
         
-        // Process batches in pairs if possible
-        const size_t batch_step = 2;
-        const size_t aligned_batch_size = (batch_size / batch_step) * batch_step;
-        
-        // Process pairs of batches simultaneously
-        for (size_t b = 0; b < aligned_batch_size; b += batch_step) {
-            const float *vec_ptr0 = matrix[b];
-            const float *vec_ptr1 = matrix[b + 1];
-            float sum0 = 0.0f, sum1 = 0.0f;
-            
-            if (blocks) {
-                size_t blocks_copy = blocks;
-                asm volatile(
-                    "eor v0.16b, v0.16b, v0.16b           \n" // sum0 = 0
-                    "eor v2.16b, v2.16b, v2.16b           \n" // sum1 = 0
-
-                    "1:                                     \n"
-                    "ld1 {v1.4s}, [%[vec_ptr0]], #16       \n" // Load 4 floats from vector 0
-                    "ld1 {v3.4s}, [%[vec_ptr1]], #16       \n" // Load 4 floats from vector 1
-                    "fadd v0.4s, v0.4s, v1.4s              \n" // sum0 += vector0 elements
-                    "fadd v2.4s, v2.4s, v3.4s              \n" // sum1 += vector1 elements
-                    "subs %[blocks], %[blocks], #1         \n"
-                    "b.ne 1b                                \n"
-
-                    // Horizontal reduction
-                    "faddp v0.4s, v0.4s, v0.4s             \n" // Reduce sum0
-                    "faddp v0.2s, v0.2s, v0.2s             \n"
-                    "fmov %w[sum0], s0                      \n"
-                    
-                    "faddp v2.4s, v2.4s, v2.4s             \n" // Reduce sum1
-                    "faddp v2.2s, v2.2s, v2.2s             \n"
-                    "fmov %w[sum1], s2                      \n"
-                    : [sum0] "=&r"(sum0), [sum1] "=&r"(sum1), 
-                      [vec_ptr0] "+r"(vec_ptr0), [vec_ptr1] "+r"(vec_ptr1), 
-                      [blocks] "+r"(blocks_copy)
-                    :
-                    : "v0", "v1", "v2", "v3", "cc", "memory");
-            }
-            
-            // Process remaining elements
-            const size_t remaining_start = (feature_dim & ~size_t(3));
-            for (size_t i = remaining_start; i < feature_dim; ++i) {
-                sum0 += matrix[b][i];
-                sum1 += matrix[b + 1][i];
-            }
-            
-            // Scale and store results
-            results[b] = sum0 * inv_feature_dim;
-            results[b + 1] = sum1 * inv_feature_dim;
-        }
-        
-        // Process any remaining batches
-        for (size_t b = aligned_batch_size; b < batch_size; ++b) {
-            const float *vec_ptr = matrix[b];
-            float sum = 0.0f;
-            
-            if (blocks) {
-                size_t blocks_copy = blocks;
-                asm volatile(
-                    "eor v0.16b, v0.16b, v0.16b           \n" // sum = 0
-
-                    "1:                                     \n"
-                    "ld1 {v1.4s}, [%[vec_ptr]], #16        \n" // Load 4 floats from vector
-                    "fadd v0.4s, v0.4s, v1.4s              \n" // sum += vector elements
-                    "subs %[blocks], %[blocks], #1         \n"
-                    "b.ne 1b                                \n"
-
-                    // Horizontal reduction
-                    "faddp v0.4s, v0.4s, v0.4s             \n" // Reduce sum
-                    "faddp v0.2s, v0.2s, v0.2s             \n"
-                    "fmov %w[sum], s0                       \n"
-                    : [sum] "=&r"(sum), [vec_ptr] "+r"(vec_ptr), [blocks] "+r"(blocks_copy)
-                    :
-                    : "v0", "v1", "cc", "memory");
-            }
-            
-            // Process remaining elements
-            const size_t remaining_start = (feature_dim & ~size_t(3));
-            for (size_t i = remaining_start; i < feature_dim; ++i) {
-                sum += matrix[b][i];
-            }
-            
-            results[b] = sum * inv_feature_dim;
-        }
-#else
-        // Use the NEON intrinsics implementation
         const float inv_feature_dim = 1.0f / static_cast<float>(feature_dim);
         const float32x4_t inv_dim_vec = vdupq_n_f32(inv_feature_dim);
-        
+
         // Process batches in groups of 4 if possible
         const size_t batch_step = 4;
         const size_t aligned_batch_size = (batch_size / batch_step) * batch_step;
-        
+
         // Process 4 batches at once for better throughput
         for (size_t b = 0; b < aligned_batch_size; b += batch_step) {
-            float32x4_t sums[4] = {
-                vdupq_n_f32(0.0f),
-                vdupq_n_f32(0.0f),
-                vdupq_n_f32(0.0f),
-                vdupq_n_f32(0.0f)
-            };
-            
+            float32x4_t sums[4] = {vdupq_n_f32(0.0f), vdupq_n_f32(0.0f), vdupq_n_f32(0.0f), vdupq_n_f32(0.0f)};
+
             // Sum across feature dimension in chunks of 4
             size_t i = 0;
             for (; i + 4 <= feature_dim; i += 4) {
                 // Load 4 elements from each of the 4 batches
                 float32x4_t v0 = vld1q_f32(matrix[b] + i);
-                float32x4_t v1 = vld1q_f32(matrix[b+1] + i);
-                float32x4_t v2 = vld1q_f32(matrix[b+2] + i);
-                float32x4_t v3 = vld1q_f32(matrix[b+3] + i);
-                
+                float32x4_t v1 = vld1q_f32(matrix[b + 1] + i);
+                float32x4_t v2 = vld1q_f32(matrix[b + 2] + i);
+                float32x4_t v3 = vld1q_f32(matrix[b + 3] + i);
+
                 sums[0] = vaddq_f32(sums[0], v0);
                 sums[1] = vaddq_f32(sums[1], v1);
                 sums[2] = vaddq_f32(sums[2], v2);
                 sums[3] = vaddq_f32(sums[3], v3);
             }
-            
+
             // Horizontal sum for each batch
-            float batch_sums[4] = {
-                vaddvq_f32(sums[0]),
-                vaddvq_f32(sums[1]),
-                vaddvq_f32(sums[2]),
-                vaddvq_f32(sums[3])
-            };
-            
+            float batch_sums[4] = {vaddvq_f32(sums[0]), vaddvq_f32(sums[1]), vaddvq_f32(sums[2]), vaddvq_f32(sums[3])};
+
             // Add remaining elements for each batch
             for (; i < feature_dim; ++i) {
                 batch_sums[0] += matrix[b][i];
-                batch_sums[1] += matrix[b+1][i];
-                batch_sums[2] += matrix[b+2][i];
-                batch_sums[3] += matrix[b+3][i];
+                batch_sums[1] += matrix[b + 1][i];
+                batch_sums[2] += matrix[b + 2][i];
+                batch_sums[3] += matrix[b + 3][i];
             }
-            
+
             // Calculate means
             results[b] = batch_sums[0] * inv_feature_dim;
-            results[b+1] = batch_sums[1] * inv_feature_dim;
-            results[b+2] = batch_sums[2] * inv_feature_dim;
-            results[b+3] = batch_sums[3] * inv_feature_dim;
+            results[b + 1] = batch_sums[1] * inv_feature_dim;
+            results[b + 2] = batch_sums[2] * inv_feature_dim;
+            results[b + 3] = batch_sums[3] * inv_feature_dim;
         }
-        
+
         // Process remaining batches individually
         for (size_t b = aligned_batch_size; b < batch_size; ++b) {
             const float *vec = matrix[b];
             float32x4_t sum_vec = vdupq_n_f32(0.0f);
-            
+
             // Process in chunks of 4 elements
             size_t i = 0;
             for (; i + 4 <= feature_dim; i += 4) {
                 float32x4_t vec_chunk = vld1q_f32(vec + i);
                 sum_vec = vaddq_f32(sum_vec, vec_chunk);
             }
-            
+
             // Horizontal sum
             float sum = vaddvq_f32(sum_vec);
-            
+
             // Add remaining elements
             for (; i < feature_dim; ++i) {
                 sum += vec[i];
             }
-            
+
             // Calculate mean
             results[b] = sum * inv_feature_dim;
         }
-#endif // __LINALG_USE_ASM__
+
+#else
+        const float inv_feature_dim = 1.0f / static_cast<float>(feature_dim);
+        const size_t blocks = feature_dim / 4;
+
+        // Process batches in pairs if possible
+        const size_t batch_step = 2;
+        const size_t aligned_batch_size = (batch_size / batch_step) * batch_step;
+
+        // Process pairs of batches simultaneously
+        for (size_t b = 0; b < aligned_batch_size; b += batch_step) {
+            const float *vec_ptr0 = matrix[b];
+            const float *vec_ptr1 = matrix[b + 1];
+            float sum0 = 0.0f, sum1 = 0.0f;
+
+            if (blocks) {
+                size_t blocks_copy = blocks;
+                asm volatile("eor v0.16b, v0.16b, v0.16b           \n" // sum0 = 0
+                             "eor v2.16b, v2.16b, v2.16b           \n" // sum1 = 0
+
+                             "1:                                     \n"
+                             "ld1 {v1.4s}, [%[vec_ptr0]], #16       \n" // Load 4 floats from vector 0
+                             "ld1 {v3.4s}, [%[vec_ptr1]], #16       \n" // Load 4 floats from vector 1
+                             "fadd v0.4s, v0.4s, v1.4s              \n" // sum0 += vector0 elements
+                             "fadd v2.4s, v2.4s, v3.4s              \n" // sum1 += vector1 elements
+                             "subs %[blocks], %[blocks], #1         \n"
+                             "b.ne 1b                                \n"
+
+                             // Horizontal reduction
+                             "faddp v0.4s, v0.4s, v0.4s             \n" // Reduce sum0
+                             "faddp v0.2s, v0.2s, v0.2s             \n"
+                             "fmov %w[sum0], s0                      \n"
+
+                             "faddp v2.4s, v2.4s, v2.4s             \n" // Reduce sum1
+                             "faddp v2.2s, v2.2s, v2.2s             \n"
+                             "fmov %w[sum1], s2                      \n"
+                             : [sum0] "=&r"(sum0), [sum1] "=&r"(sum1), [vec_ptr0] "+r"(vec_ptr0),
+                               [vec_ptr1] "+r"(vec_ptr1), [blocks] "+r"(blocks_copy)
+                             :
+                             : "v0", "v1", "v2", "v3", "cc", "memory");
+            }
+
+            // Process remaining elements
+            const size_t remaining_start = (feature_dim & ~size_t(3));
+            for (size_t i = remaining_start; i < feature_dim; ++i) {
+                sum0 += matrix[b][i];
+                sum1 += matrix[b + 1][i];
+            }
+
+            // Scale and store results
+            results[b] = sum0 * inv_feature_dim;
+            results[b + 1] = sum1 * inv_feature_dim;
+        }
+
+        // Process any remaining batches
+        for (size_t b = aligned_batch_size; b < batch_size; ++b) {
+            const float *vec_ptr = matrix[b];
+            float sum = 0.0f;
+
+            if (blocks) {
+                size_t blocks_copy = blocks;
+                asm volatile("eor v0.16b, v0.16b, v0.16b           \n" // sum = 0
+
+                             "1:                                     \n"
+                             "ld1 {v1.4s}, [%[vec_ptr]], #16        \n" // Load 4 floats from vector
+                             "fadd v0.4s, v0.4s, v1.4s              \n" // sum += vector elements
+                             "subs %[blocks], %[blocks], #1         \n"
+                             "b.ne 1b                                \n"
+
+                             // Horizontal reduction
+                             "faddp v0.4s, v0.4s, v0.4s             \n" // Reduce sum
+                             "faddp v0.2s, v0.2s, v0.2s             \n"
+                             "fmov %w[sum], s0                       \n"
+                             : [sum] "=&r"(sum), [vec_ptr] "+r"(vec_ptr), [blocks] "+r"(blocks_copy)
+                             :
+                             : "v0", "v1", "cc", "memory");
+            }
+
+            // Process remaining elements
+            const size_t remaining_start = (feature_dim & ~size_t(3));
+            for (size_t i = remaining_start; i < feature_dim; ++i) {
+                sum += matrix[b][i];
+            }
+
+            results[b] = sum * inv_feature_dim;
+        }
+#endif // LINALG_USE_ASM
     }
-#endif // __aarch64__
+#endif // LINALG_USE_NEON
 
     /**
      * @brief Portable scalar implementation of batch feature mean pooling
@@ -1150,9 +1144,9 @@ namespace wheel::linalg_boost::detail {
      * @param results Output array to store batch results (must be pre-allocated with batch_size elements)
      */
     inline void batch_feature_mean_pooling_scalar(const float **matrix, size_t feature_dim, size_t batch_size,
-                                              float *results) {
+                                                  float *results) {
         const float inv_feature_dim = 1.0f / static_cast<float>(feature_dim);
-        
+
         // Use standard algorithms for each batch
         for (size_t b = 0; b < batch_size; ++b) {
             // Use std::accumulate to sum all elements in the feature vector
