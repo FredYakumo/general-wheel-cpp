@@ -27,7 +27,7 @@ A friendly modern C++ toolkit that makes your life easier with thread-safe colle
 - **Platform-specific optimizations (NEON for ARM64)**
 - **Fast vector operations**
 
-> Note: Enable the optional assembly/SIMD path by configuring CMake with `-DLINALG_USE_ASM=ON` to use the current highest-performance implementation.
+> Note: Enable the optional assembly/SIMD by configuring CMake with `-DLINALG_USE_ASM=ON` to use the current highest-performance implementation.
 
 #### Performance Benchmarks (LINALG_USE_ASM)
 
