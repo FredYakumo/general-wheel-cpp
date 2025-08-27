@@ -34,9 +34,8 @@ message(STATUS "Linear algebra assembly optimizations (LINALG_USE_ASM): ${LINALG
 
 
 # Add source files
-file(GLOB_RECURSE SOURCES 
-    "src/*.cpp"
-    "include/*.h"
+set(SOURCES
+    src/markdown_utils.cpp
 )
 
 # Create library target
